@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.exceptions;
 
+import com.ecommerce.aurora.payload.APIResponse;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,15 +26,15 @@ public class MyGlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<String> resourceNotFoundExceptionHandler(@NonNull ResourceNotFoundException e){
-        String message = e.getMessage();
-        return new ResponseEntity<>(message, HttpStatus.NOT_FOUND);
+    public ResponseEntity<APIResponse> resourceNotFoundExceptionHandler(@NonNull ResourceNotFoundException e){
+        APIResponse apiResponse = new APIResponse(e.getMessage(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.NOT_FOUND);
     }
 
 
     @ExceptionHandler(APIException.class)
-    public ResponseEntity<String> resourceNotFoundExceptionHandler(APIException e){
-        String message = e.getMessage();
-        return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<APIResponse> resourceNotFoundExceptionHandler(APIException e){
+        APIResponse apiResponse = new APIResponse(e.getMessage(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
     }
 }

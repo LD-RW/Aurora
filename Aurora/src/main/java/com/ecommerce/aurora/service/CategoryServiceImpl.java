@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.service;
 
+import com.ecommerce.aurora.constants.AppConstants;
 import com.ecommerce.aurora.exceptions.APIException;
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.CategoryMapper;
@@ -8,6 +9,10 @@ import com.ecommerce.aurora.payload.CategoryDTO;
 import com.ecommerce.aurora.payload.CategoryResponse;
 import com.ecommerce.aurora.repositories.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,8 +26,16 @@ public class CategoryServiceImpl implements CategoryService{
     private final CategoryMapper categoryMapper;
 
     @Override
-    public CategoryResponse getAllCategories() {
-        List<Category> categories = categoryRepository.findAll();
+    public CategoryResponse getAllCategories(Integer pageNumber, Integer pageSize,  String sortBy, String sortOrder) {
+
+        if (!AppConstants.ALLOWED_CATEGORY_SORT_FIELDS.contains(sortBy)) {
+            throw new APIException("Invalid sort field: " + sortBy);
+        }
+        Sort.Direction direction = sortOrder.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Sort sortByAndOrder = Sort.by(direction, sortBy);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Category> categoryPage = categoryRepository.findAll(pageDetails);
+        List<Category> categories = categoryPage.getContent();
         if(categories.isEmpty()){
             throw new APIException("No categories were created till now.");
         }
@@ -31,6 +44,11 @@ public class CategoryServiceImpl implements CategoryService{
                 .toList();
         CategoryResponse categoryResponse = new CategoryResponse();
         categoryResponse.setContent(categoryDTOS);
+        categoryResponse.setPageNumber(categoryPage.getNumber());
+        categoryResponse.setPageSize(categoryPage.getSize());
+        categoryResponse.setTotalPages(categoryPage.getTotalPages());
+        categoryResponse.setTotalElements(categoryPage.getTotalElements());
+        categoryResponse.setLastPage(categoryPage.isLast());
         return categoryResponse;
     }
 
