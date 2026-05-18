@@ -19,9 +19,13 @@ public class Product {
     private String productName;
     private String description;
     private Integer quantity;
+    private String image;
     private BigDecimal price;
+    private BigDecimal discount;
     private BigDecimal specialPrice;
 
+    @SuppressWarnings("JpaDataSourceORMInspection")
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
     private Category category;
 }
