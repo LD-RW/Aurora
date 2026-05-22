@@ -1,6 +1,5 @@
 package com.ecommerce.aurora.service;
 
-import com.ecommerce.aurora.model.Product;
 import com.ecommerce.aurora.payload.ProductDTO;
 import com.ecommerce.aurora.payload.ProductResponse;
 import org.springframework.web.multipart.MultipartFile;
