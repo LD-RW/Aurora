@@ -5,7 +5,7 @@ import com.ecommerce.aurora.payload.ProductDTO;
 import com.ecommerce.aurora.payload.ProductResponse;
 
 public interface ProductService {
-    ProductDTO addProduct(Long categoryId, Product product);
+    ProductDTO addProduct(Long categoryId, ProductDTO productDTO);
 
     ProductResponse getAllProducts();
 
@@ -13,7 +13,7 @@ public interface ProductService {
 
     ProductResponse searchByKeyword(String keyword);
 
-    ProductDTO updateProduct(Long productId, Product product);
+    ProductDTO updateProduct(Long productId, ProductDTO productDTO);
 
     ProductDTO deleteProduct(Long productId);
 }
