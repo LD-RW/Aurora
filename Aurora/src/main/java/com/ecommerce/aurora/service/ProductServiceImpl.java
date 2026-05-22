@@ -2,7 +2,6 @@ package com.ecommerce.aurora.service;
 
 
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
-import com.ecommerce.aurora.mapper.CategoryMapper;
 import com.ecommerce.aurora.mapper.ProductMapper;
 import com.ecommerce.aurora.model.Category;
 import com.ecommerce.aurora.model.Product;
@@ -11,7 +10,6 @@ import com.ecommerce.aurora.payload.ProductResponse;
 import com.ecommerce.aurora.repositories.CategoryRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -31,16 +29,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
         product.setCategory(category);
         product.setImage("default.png");
-        BigDecimal price = product.getPrice();
-        BigDecimal discount = product.getDiscount();
-        if (discount == null || discount.compareTo(BigDecimal.ZERO) == 0) {
-            product.setSpecialPrice(price);
-        } else {
-            BigDecimal discountPercentage = discount.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
-            BigDecimal discountValue = price.multiply(discountPercentage);
-            BigDecimal specialPrice = price.subtract(discountValue);
-            product.setSpecialPrice(specialPrice.setScale(2, RoundingMode.HALF_UP));
-        }
+        product.setSpecialPrice(calculateSpecialPrice(product.getPrice(), product.getDiscount()));
         Product savedProduct = productRepository.save(product);
         return productMapper.productToProductDTO(savedProduct);
 
@@ -79,6 +68,35 @@ public class ProductServiceImpl implements ProductService {
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productDTOS);
         return productResponse;
+    }
+
+    @Override
+    public ProductDTO updateProduct(Long productId, Product product) {
+        Product productFromDb =  productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        productFromDb.setProductName(product.getProductName());
+        productFromDb.setDescription(product.getDescription());
+        productFromDb.setQuantity(product.getQuantity());
+        productFromDb.setPrice(product.getPrice());
+        productFromDb.setDiscount(product.getDiscount());
+        productFromDb.setSpecialPrice(calculateSpecialPrice(product.getPrice(), product.getDiscount()));
+        return productMapper.productToProductDTO(productRepository.save(productFromDb));
+
+    }
+
+    private BigDecimal calculateSpecialPrice(BigDecimal price, BigDecimal discount) {
+        if (price == null) {
+            return BigDecimal.ZERO;
+        }
+        if (discount == null || discount.compareTo(BigDecimal.ZERO) == 0) {
+            return price;
+        }
+
+        BigDecimal discountPercentage = discount.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+        BigDecimal discountValue = price.multiply(discountPercentage);
+        BigDecimal specialPrice = price.subtract(discountValue);
+
+        return specialPrice.setScale(2, RoundingMode.HALF_UP);
     }
 
 }
