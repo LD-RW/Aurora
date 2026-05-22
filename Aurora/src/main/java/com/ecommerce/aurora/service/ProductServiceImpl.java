@@ -84,6 +84,14 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
+    @Override
+    public ProductDTO deleteProduct(Long productId) {
+        Product productToDelete = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        productRepository.delete(productToDelete);
+        return productMapper.productToProductDTO(productToDelete);
+    }
+
     private BigDecimal calculateSpecialPrice(BigDecimal price, BigDecimal discount) {
         if (price == null) {
             return BigDecimal.ZERO;
