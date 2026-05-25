@@ -10,17 +10,14 @@ import com.ecommerce.aurora.payload.ProductResponse;
 import com.ecommerce.aurora.repositories.CategoryRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +26,9 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductMapper productMapper;
+    private final FileService fileService;
+    @Value("${project.image}")
+    private String path;
     @Override
     public ProductDTO addProduct(Long categoryId, ProductDTO productDTO) {
         Product product = productMapper.productDTOToProduct(productDTO);
@@ -104,8 +104,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductDTO updateProductImage(Long productId, MultipartFile image) throws IOException {
         Product productFromDb = productRepository.findById(productId).
                 orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
-        String path = "images/";
-        String fileName = uploadImage(path, image);
+        String fileName = fileService.uploadImage(path, image);
         productFromDb.setImage(fileName);
         return productMapper.productToProductDTO(productRepository.save(productFromDb));
 
@@ -113,28 +112,6 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
-    private String uploadImage(String path, MultipartFile file) throws IOException {
-
-        String originalFilename = file.getOriginalFilename();
-        String randomId = UUID.randomUUID().toString();
-
-        String extension = "";
-        int dotIndex = originalFilename.lastIndexOf(".");
-
-        if (dotIndex >= 0 && dotIndex < originalFilename.length() - 1) {
-            extension = originalFilename.substring(dotIndex);
-        }
-
-        String fileName = randomId.concat(extension);
-        String filePath = path + File.separator + fileName;
-
-        File folder = new File(path);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-        Files.copy(file.getInputStream(), Paths.get(filePath));
-        return fileName;
-    }
 
     private BigDecimal calculateSpecialPrice(BigDecimal price, BigDecimal discount) {
         if (price == null) {
