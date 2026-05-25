@@ -10,8 +10,11 @@ import com.ecommerce.aurora.payload.ProductResponse;
 import com.ecommerce.aurora.repositories.CategoryRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -23,6 +26,9 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductMapper productMapper;
+    private final FileService fileService;
+    @Value("${project.image}")
+    private String path;
     @Override
     public ProductDTO addProduct(Long categoryId, ProductDTO productDTO) {
         Product product = productMapper.productDTOToProduct(productDTO);
@@ -93,6 +99,19 @@ public class ProductServiceImpl implements ProductService {
         productRepository.delete(productToDelete);
         return productMapper.productToProductDTO(productToDelete);
     }
+
+    @Override
+    public ProductDTO updateProductImage(Long productId, MultipartFile image) throws IOException {
+        Product productFromDb = productRepository.findById(productId).
+                orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        String fileName = fileService.uploadImage(path, image);
+        productFromDb.setImage(fileName);
+        return productMapper.productToProductDTO(productRepository.save(productFromDb));
+
+
+
+    }
+
 
     private BigDecimal calculateSpecialPrice(BigDecimal price, BigDecimal discount) {
         if (price == null) {
