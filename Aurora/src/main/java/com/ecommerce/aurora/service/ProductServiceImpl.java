@@ -1,6 +1,7 @@
 package com.ecommerce.aurora.service;
 
 
+import com.ecommerce.aurora.exceptions.APIException;
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.ProductMapper;
 import com.ecommerce.aurora.model.Category;
@@ -31,9 +32,16 @@ public class ProductServiceImpl implements ProductService {
     private String path;
     @Override
     public ProductDTO addProduct(Long categoryId, ProductDTO productDTO) {
+        // check if product is already present or not, do it with the help of product name
         Product product = productMapper.productDTOToProduct(productDTO);
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
+
+        Product existingProduct = productRepository.findByProductName(product.getProductName());
+        if (existingProduct != null) {
+            throw new APIException("Product with name " + product.getProductName() + " already exists !!!");
+        }
+
         product.setCategory(category);
         product.setImage("default.png");
         product.setSpecialPrice(calculateSpecialPrice(product.getPrice(), product.getDiscount()));
@@ -44,7 +52,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse getAllProducts() {
+
         List<Product> products = productRepository.findAll();
+        if(products.isEmpty()) {
+            throw new APIException("No Products were created till now");
+        }
         List<ProductDTO> productDTOS = products.stream()
                 .map(productMapper::productToProductDTO)
                 .toList();
@@ -58,6 +70,9 @@ public class ProductServiceImpl implements ProductService {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
         List<Product> products = productRepository.findByCategory(category);
+        if (products.isEmpty()) {
+            throw new APIException("No products found for this category.");
+        }
         List<ProductDTO> productDTOS = products.stream()
                 .map(productMapper::productToProductDTO)
                 .toList();
@@ -68,7 +83,13 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse searchByKeyword(String keyword) {
+        // check if there is no products added yet then raise an API Exception
+
         List<Product> products = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%');
+        if (products.isEmpty()) {
+            throw new APIException("No products found with keyword: " + keyword);
+        }
+
         List<ProductDTO> productDTOS = products.stream()
                 .map(productMapper::productToProductDTO)
                 .toList();
@@ -79,9 +100,16 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
+        
         Product product = productMapper.productDTOToProduct(productDTO);
         Product productFromDb =  productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+        Product existingProduct = productRepository.findByProductName(product.getProductName());
+        if (existingProduct != null && !existingProduct.getProductId().equals(productId)) {
+            throw new APIException("Product with name " + product.getProductName() + " already exists !!!");
+        }
+
         productFromDb.setProductName(product.getProductName());
         productFromDb.setDescription(product.getDescription());
         productFromDb.setQuantity(product.getQuantity());
