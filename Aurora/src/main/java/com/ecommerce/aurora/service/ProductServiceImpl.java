@@ -1,6 +1,8 @@
 package com.ecommerce.aurora.service;
 
 
+import com.ecommerce.aurora.constants.AppConstants;
+import com.ecommerce.aurora.exceptions.APIException;
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.ProductMapper;
 import com.ecommerce.aurora.model.Category;
@@ -11,6 +13,10 @@ import com.ecommerce.aurora.repositories.CategoryRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,6 +40,12 @@ public class ProductServiceImpl implements ProductService {
         Product product = productMapper.productDTOToProduct(productDTO);
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
+
+        Product existingProduct = productRepository.findByProductName(product.getProductName());
+        if (existingProduct != null) {
+            throw new APIException("Product with name " + product.getProductName() + " already exists !!!");
+        }
+
         product.setCategory(category);
         product.setImage("default.png");
         product.setSpecialPrice(calculateSpecialPrice(product.getPrice(), product.getDiscount()));
@@ -43,45 +55,103 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse getAllProducts() {
-        List<Product> products = productRepository.findAll();
+    public ProductResponse getAllProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+
+        if (!AppConstants.ALLOWED_PRODUCT_SORT_FIELDS.contains(sortBy)) {
+            throw new APIException("Invalid sort field: " + sortBy);
+        }
+        Sort.Direction direction = sortOrder.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Sort sortByAndOrder = Sort.by(direction, sortBy);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Product> productPage = productRepository.findAll(pageDetails);
+        List<Product> products = productPage.getContent();
+        if(products.isEmpty()) {
+            throw new APIException("No Products were created till now");
+        }
         List<ProductDTO> productDTOS = products.stream()
                 .map(productMapper::productToProductDTO)
                 .toList();
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productDTOS);
+        productResponse.setPageNumber(productPage.getNumber());
+        productResponse.setPageSize(productPage.getSize());
+        productResponse.setTotalPages(productPage.getTotalPages());
+        productResponse.setTotalElements(productPage.getTotalElements());
+        productResponse.setLastPage(productPage.isLast());
         return productResponse;
     }
 
     @Override
-    public ProductResponse searchByCategory(Long categoryId) {
+    public ProductResponse searchByCategory(Long categoryId, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
-        List<Product> products = productRepository.findByCategory(category);
+
+        if (!AppConstants.ALLOWED_PRODUCT_SORT_FIELDS.contains(sortBy)) {
+            throw new APIException("Invalid sort field: " + sortBy);
+        }
+        Sort.Direction direction = sortOrder.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Sort sortByAndOrder = Sort.by(direction, sortBy);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+
+        Page<Product> productPage = productRepository.findByCategory(category, pageDetails);
+        List<Product> products = productPage.getContent();
+        if (products.isEmpty()) {
+            throw new APIException("No products found for this category.");
+        }
         List<ProductDTO> productDTOS = products.stream()
                 .map(productMapper::productToProductDTO)
                 .toList();
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productDTOS);
+        productResponse.setPageNumber(productPage.getNumber());
+        productResponse.setPageSize(productPage.getSize());
+        productResponse.setTotalPages(productPage.getTotalPages());
+        productResponse.setTotalElements(productPage.getTotalElements());
+        productResponse.setLastPage(productPage.isLast());
         return productResponse;
     }
 
     @Override
-    public ProductResponse searchByKeyword(String keyword) {
-        List<Product> products = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%');
+    public ProductResponse searchByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+
+        if (!AppConstants.ALLOWED_PRODUCT_SORT_FIELDS.contains(sortBy)) {
+            throw new APIException("Invalid sort field: " + sortBy);
+        }
+        Sort.Direction direction = sortOrder.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Sort sortByAndOrder = Sort.by(direction, sortBy);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+
+        Page<Product> productPage = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%', pageDetails);
+        List<Product> products = productPage.getContent();
+        if (products.isEmpty()) {
+            throw new APIException("No products found with keyword: " + keyword);
+        }
+
         List<ProductDTO> productDTOS = products.stream()
                 .map(productMapper::productToProductDTO)
                 .toList();
         ProductResponse productResponse = new ProductResponse();
         productResponse.setContent(productDTOS);
+        productResponse.setPageNumber(productPage.getNumber());
+        productResponse.setPageSize(productPage.getSize());
+        productResponse.setTotalPages(productPage.getTotalPages());
+        productResponse.setTotalElements(productPage.getTotalElements());
+        productResponse.setLastPage(productPage.isLast());
         return productResponse;
     }
 
     @Override
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
+        
         Product product = productMapper.productDTOToProduct(productDTO);
         Product productFromDb =  productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+        Product existingProduct = productRepository.findByProductName(product.getProductName());
+        if (existingProduct != null && !existingProduct.getProductId().equals(productId)) {
+            throw new APIException("Product with name " + product.getProductName() + " already exists !!!");
+        }
+
         productFromDb.setProductName(product.getProductName());
         productFromDb.setDescription(product.getDescription());
         productFromDb.setQuantity(product.getQuantity());
