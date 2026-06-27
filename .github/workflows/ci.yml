@@ -1,0 +1,44 @@
+name: Aurora CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    # mvnw lives inside the Aurora/ subdirectory, not the repo root
+    defaults:
+      run:
+        working-directory: Aurora
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          # Caches ~/.m2/repository keyed on all pom.xml files found in the repo
+          cache: 'maven'
+
+      - name: Grant execute permission for Maven Wrapper (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: chmod +x mvnw
+
+      # shell: bash ensures ./mvnw works on Windows (via Git Bash) and Linux/macOS
+      # verify runs: compile → test → package (catches lint-level errors at compile time)
+      - name: Lint and Test
+        shell: bash
+        run: ./mvnw clean verify
