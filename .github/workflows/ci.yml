@@ -7,6 +7,24 @@ on:
     branches: [ "main" ]
 
 jobs:
+
+  prose-lint:
+    name: Prose Lint (Vale)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Vale
+        run: curl -sL https://github.com/errata-ai/vale/releases/download/v3.15.1/vale_3.15.1_Linux_64-bit.tar.gz | sudo tar xz -C /usr/local/bin vale
+
+      # Downloads the Microsoft package declared in .vale.ini
+      - name: Sync Vale styles
+        run: vale sync
+
+      # Errors fail the build; warnings/suggestions stay advisory
+      - name: Lint prose
+        run: vale --minAlertLevel=error README.md Aurora/docs/
   build-and-test:
     name: Build & Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

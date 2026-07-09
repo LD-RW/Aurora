@@ -16,9 +16,9 @@ Furthermore, Aurora relies on **Jakarta Bean Validation** to validate inbound DT
 
 I have centralized all error handling declaratively using a single Spring `@RestControllerAdvice` component named `MyGlobalExceptionHandler`. This component intercepts exceptions application-wide, mapping them to a uniform response envelope or a dedicated validation structure:
 
-- **`ResourceNotFoundException`:** Thrown exclusively by the service layer when an entity lookup fails (e.g., `.findById(...).orElseThrow(...)`). This exception is mapped directly to a **404 Not Found** status.
+- **`ResourceNotFoundException`:** Thrown exclusively by the service layer when an entity lookup fails (for example, `.findById(...).orElseThrow(...)`). This exception is mapped directly to a **404 Not Found** status.
     
-- **`APIException`:** Used for core business-rule violations (e.g., duplicate product names, invalid sorting fields, or empty result constraints). This exception is mapped to a **400 Bad Request** status.
+- **`APIException`:** Used for core business-rule violations (for example, duplicate product names, invalid sorting fields, or empty result constraints). This exception is mapped to a **400 Bad Request** status.
     
 - **`MethodArgumentNotValidException`:** Intercepts Jakarta Bean Validation failures and maps them to a **400 Bad Request** status. The response body is structured as a clear `field -> message` map, allowing frontend clients to easily bind error messages to corresponding form inputs.
     
@@ -42,6 +42,6 @@ I have centralized all error handling declaratively using a single Spring `@Rest
 
 - **Semantic Conflation:** Routing an empty result set through `APIException -> 400 Bad Request` conflates _empty data_ with _malformed or invalid input_. An empty product list should ideally return an HTTP `200 OK` with an empty array `[]`. This choice favors loud, explicit feedback over strict REST purity and will likely require future revision.
     
-- **Divergent Error Formats:** The error envelope is not perfectly uniform. Validation errors yield a bare key-value map, whereas standard domain errors return an `APIResponse` object. This forces frontend clients to implement logic to handle two distinct JSON failure shapes.
+- **Divergent Error Formats:** The error envelope isn't perfectly uniform. Validation errors yield a bare key-value map, whereas standard domain errors return an `APIResponse` object. This forces frontend clients to implement logic to handle two distinct JSON failure shapes.
     
 - **Lack of a Safety Net:** The current handler lacks a fallback `@ExceptionHandler(Exception.class)` method. Consequently, unhandled runtime exceptions will still slip through, leaking default Spring framework error pages to consumers.
