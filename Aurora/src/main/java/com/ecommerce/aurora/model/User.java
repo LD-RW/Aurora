@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,7 +14,8 @@ import java.util.Set;
 
 @Entity
 @NoArgsConstructor
-@Data
+@Getter
+@Setter
 @Table(name = "users",
         uniqueConstraints = {
         @UniqueConstraint(columnNames = "username"),
@@ -49,8 +49,7 @@ public class User {
     @Column(name = "email")
     private String email;
 
-    @Getter
-    @Setter
+
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE} ,fetch = FetchType.LAZY)
     @JoinTable(name = "user_role",
                 joinColumns = @JoinColumn(name = "user_id"),
