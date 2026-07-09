@@ -23,7 +23,7 @@ The architecture must satisfy three primary criteria:
 
 This architectural decision explicitly addresses two recurring vulnerabilities in standard Spring applications:
 
-- **Entity Leakage:** Returning `@Entity` objects directly couples the external wire contract to the internal database schema. This frequently invites runtime serialization bugs, such as `LazyInitializationException` when dealing with lazy-loaded relationships (e.g., `Product.category` defined as a `ManyToOne(fetch = FetchType.LAZY)` association).
+- **Entity Leakage:** Returning `@Entity` objects directly couples the external wire contract to the internal database schema. This frequently invites runtime serialization bugs, such as `LazyInitializationException` when dealing with lazy-loaded relationships (for example, `Product.category` defined as a `ManyToOne(fetch = FetchType.LAZY)` association).
     
 - **Fat Controllers:** Allowing business rules to drift into the web layer makes controllers difficult to unit test and leads to widespread code duplication.
     
@@ -36,11 +36,11 @@ $$\text{Controller} \longrightarrow \text{Service (Interface + Impl)} \longright
 
 To enforce this structure, I will adhere to the following implementation conventions:
 
-- **Interface-Driven Services:** Every service is decoupled into an interface (e.g., `ProductService`) and an implementation class (e.g., `ProductServiceImpl`). Dependency injection is handled exclusively via constructor injection, streamlined by Lombok's `@RequiredArgsConstructor`.
+- **Interface-Driven Services:** Every service is decoupled into an interface (for example, `ProductService`) and an implementation class (for example, `ProductServiceImpl`). Dependency injection is handled exclusively via constructor injection, streamlined by Lombok's `@RequiredArgsConstructor`.
     
-- **Strict Boundary Isolation:** Controllers communicate exclusively using Data Transfer Objects (e.g., `ProductDTO`, `CategoryDTO`) and standardized response wrappers (`ProductResponse`, `CategoryResponse`, `APIResponse`). **Entities are strictly forbidden from crossing the controller boundary.**
+- **Strict Boundary Isolation:** Controllers communicate exclusively using Data Transfer Objects (for example, `ProductDTO`, `CategoryDTO`) and standardized response wrappers (`ProductResponse`, `CategoryResponse`, `APIResponse`). **Entities are strictly forbidden from crossing the controller boundary.**
     
-- **Automated Mapping:** Entity-to-DTO translation is entirely delegated to MapStruct mappers configured with `componentModel = "spring"`. This includes nested flattening (e.g., mapping `category.categoryId` to a top-level `categoryId`). Hand-written mapping code is prohibited.
+- **Automated Mapping:** Entity-to-DTO translation is entirely delegated to MapStruct mappers configured with `componentModel = "spring"`. This includes nested flattening (for example, mapping `category.categoryId` to a top-level `categoryId`). Hand-written mapping code is prohibited.
     
 - **Centralized Configuration:** Cross-cutting, global constants (such as default page sizes, sorting whitelists, and pagination defaults) are unified inside a single `AppConstants` class.
     
@@ -49,7 +49,7 @@ To enforce this structure, I will adhere to the following implementation convent
 
 ### Positive (Benefits)
 
-- **Centralized Business Logic:** Core domain rules (e.g., `calculateSpecialPrice`, duplicate-name validations) are fully isolated within the service layer, making them independently and reliably testable.
+- **Centralized Business Logic:** Core domain rules (for example, `calculateSpecialPrice`, duplicate-name validations) are fully isolated within the service layer, making them independently and reliably testable.
     
 - **Decoupled API Contract:** The API contract is immune to database schema migrations. Because DTOs are explicitly shaped, lazy-loaded categories never trigger unexpected serialization behavior.
     

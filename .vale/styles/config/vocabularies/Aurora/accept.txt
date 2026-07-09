@@ -1,0 +1,6 @@
+Aurora
+Lombok
+Lombok's
+DTO
+DTOs
+declaratively

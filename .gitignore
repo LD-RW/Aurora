@@ -1,2 +1,3 @@
 # IntelliJ IDEA (root level)
 .idea/
+.vale/styles/Microsoft/
