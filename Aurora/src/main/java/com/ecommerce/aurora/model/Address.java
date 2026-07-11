@@ -4,13 +4,7 @@ package com.ecommerce.aurora.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.util.ArrayList;
-import java.util.List;
+import lombok.*;
 
 @Entity
 @Table(name = "addresses")
@@ -57,6 +51,9 @@ public class Address {
     @Size(min = 5, message = "City name must be at least 5 characters")
     private String pinCode;
 
-    @ManyToMany(mappedBy = "addresses",fetch = FetchType.LAZY)
-    private List<User> users = new ArrayList<>();
+
+    @ToString.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }
