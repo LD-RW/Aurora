@@ -1,7 +1,8 @@
-package com.ecommerce.aurora.security.jwt.src.main.java.com.ecommerce.project.security.jwt;
+package com.ecommerce.aurora.security.jwt;
 
 
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
@@ -15,7 +16,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.security.Key;
 import java.util.Date;
 
 @Component
@@ -46,15 +46,15 @@ public class JwtUtils {
 
     }
     public String getUserNameFromToken(String token) {
-        return Jwts.parser().verifyWith((SecretKey) key()).build().parseSignedClaims(token).getPayload().getSubject();
+        return Jwts.parser().verifyWith(key()).build().parseSignedClaims(token).getPayload().getSubject();
     }
-    public Key key() {
+    public SecretKey key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith((SecretKey) key()).build().parseClaimsJws(token);
+            Jwts.parser().verifyWith(key()).build().parseSignedClaims(token);
             return true;
 
         } catch (MalformedJwtException e) {
@@ -65,6 +65,9 @@ public class JwtUtils {
         }
         catch (UnsupportedJwtException e) {
             LOG.error("Unsupported JWT token: {}", e.getMessage());
+        }
+        catch (JwtException e) {
+            LOG.error("Invalid JWT signature: {}", e.getMessage());
         }
         catch (IllegalArgumentException e) {
             LOG.error("JWT claims string is empty: {}", e.getMessage());
