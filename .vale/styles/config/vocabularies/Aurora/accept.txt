@@ -4,3 +4,8 @@ Lombok's
 DTO
 DTOs
 declaratively
+Keycloak
+Okta
+signin
+allowlist
+plaintext
