@@ -36,20 +36,23 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
         try {
             String jwt = parseJwt(request);
-            if(jwt != null && jwtUtils.validateToken(jwt)) {
-                String username = jwtUtils.getUserNameFromToken(jwt);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities()
-                );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-
+            if(jwt != null) {
+                if (jwtUtils.validateToken(jwt)) {
+                    String username = jwtUtils.getUserNameFromToken(jwt);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    LOG.warn("Rejected invalid JWT token from {} for {} {}",
+                            request.getRemoteAddr(), request.getMethod(), request.getRequestURI());
+                }
             }
         }
         catch (Exception ex) {
-            LOG.error("Cannot set user authentication: {}", ex.getMessage());
+            LOG.error("Cannot set user authentication for request from {}: {}", request.getRemoteAddr(), ex.getMessage());
         }
         filterChain.doFilter(request, response);
     }
