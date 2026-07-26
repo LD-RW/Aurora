@@ -4,6 +4,7 @@ import com.ecommerce.aurora.payload.APIResponse;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,5 +37,11 @@ public class MyGlobalExceptionHandler {
     public ResponseEntity<APIResponse> resourceNotFoundExceptionHandler(APIException e){
         APIResponse apiResponse = new APIResponse(e.getMessage(), false);
         return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<APIResponse> authenticationExceptionHandler(AuthenticationException e){
+        APIResponse apiResponse = new APIResponse("Bad credentials", false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.UNAUTHORIZED);
     }
 }
