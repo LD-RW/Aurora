@@ -1,0 +1,28 @@
+# CODEOWNERS
+#
+# Automatically requests a review from the listed owner(s) whenever a PR
+# touches a matching path. Later entries take precedence over earlier ones,
+# so keep more specific paths below their broader counterparts.
+#
+# Aurora currently has a single maintainer; every path below points to
+# @LD-RW. Split a path out to a different owner as soon as someone else
+# starts maintaining that area.
+
+# Default owner for everything not matched below
+*                                                       @LD-RW
+
+# Security, authentication, and JWT handling
+/Aurora/src/main/java/com/ecommerce/aurora/security/   @LD-RW
+
+# Domain model and persistence
+/Aurora/src/main/java/com/ecommerce/aurora/model/      @LD-RW
+/Aurora/src/main/java/com/ecommerce/aurora/repositories/ @LD-RW
+
+# Build, dependencies, and CI/CD
+/Aurora/pom.xml                                        @LD-RW
+/.github/                                               @LD-RW
+
+# Architecture decision records and docs
+/Aurora/docs/                                           @LD-RW
+/README.md                                              @LD-RW
+/CONTRIBUTING.md                                        @LD-RW
