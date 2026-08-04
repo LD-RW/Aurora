@@ -56,6 +56,17 @@ public class JwtUtils {
         return responseCookie;
     }
 
+    public ResponseCookie getCleanCookie() {
+        ResponseCookie responseCookie = ResponseCookie.from(jwtCookie, null)
+                .path("/api")
+                .maxAge(0)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .build();
+        return responseCookie;
+    }
+
     public String generateTokenFromUsername(String username) {
         return Jwts.builder()
                 .subject(username)
