@@ -72,4 +72,8 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE},
                 orphanRemoval = true,fetch = FetchType.LAZY)
     private Set<Product> products = new HashSet<>();
+
+    @ToString.Exclude
+    @OneToOne(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    private Cart cart;
 }
