@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aurora-server",
+      "runtimeExecutable": "./Aurora/mvnw",
+      "runtimeArgs": ["-f", "Aurora/pom.xml", "spring-boot:run"],
+      "port": 8080
+    }
+  ]
+}
