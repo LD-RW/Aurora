@@ -75,6 +75,15 @@ public class CartServiceImpl implements CartService {
                 .toList();
     }
 
+    @Override
+    public CartDTO getCart(Long cartId) {
+        Cart cart = cartRepository.findCartByEmailAndCartId(authUtil.loggedInEmail(), cartId);
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart", "cartId", cartId);
+        }
+        return convertToDto(cart);
+    }
+
     private CartDTO convertToDto(Cart cart) {
         CartDTO cartDTO = new CartDTO();
         cartDTO.setCartId(cart.getCartId());

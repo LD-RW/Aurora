@@ -32,4 +32,10 @@ public class CartController {
         List<CartDTO> carts = cartService.getAllCarts();
         return new ResponseEntity<>(carts, HttpStatus.OK);
     }
+
+    @GetMapping("/carts/{cartId}")
+    public ResponseEntity<CartDTO> getCart(@PathVariable Long cartId){
+        CartDTO cartDTO = cartService.getCart(cartId);
+        return new ResponseEntity<>(cartDTO, HttpStatus.OK);
+    }
 }
