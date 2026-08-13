@@ -45,3 +45,11 @@ I have centralized all error handling declaratively using a single Spring `@Rest
 - **Divergent Error Formats:** The error envelope isn't perfectly uniform. Validation errors yield a bare key-value map, whereas standard domain errors return an `APIResponse` object. This forces frontend clients to implement logic to handle two distinct JSON failure shapes.
     
 - **Lack of a Safety Net:** The current handler lacks a fallback `@ExceptionHandler(Exception.class)` method. Consequently, unhandled runtime exceptions will still slip through, leaking default Spring framework error pages to consumers.
+
+## Update (2026-08-13)
+
+Two of the three named trade-offs above are resolved.
+
+- **Safety net added.** `MyGlobalExceptionHandler` now has a fallback `@ExceptionHandler(Exception.class)`, mapped to `APIResponse` and a **500 Internal Server Error**. The real exception is logged server-side; the client only ever sees the generic envelope, never a stack trace or the default Spring error page.
+- **Semantic conflation resolved for listings.** `ProductServiceImpl` (`getAllProducts`, `searchByCategory`, `searchByKeyword`) and `CategoryServiceImpl` (`getAllCategories`) no longer throw `APIException` when a page comes back empty. An empty result now returns `200 OK` with `content: []` and accurate pagination metadata (`totalElements: 0`), matching what the cart-listing endpoint (`GET /api/admin/carts`) already did. `APIException` is still used for genuine invalid input on these same endpoints (an unrecognized `sortBy` field, for instance) — only the "no rows yet" case changed.
+- **Divergent Error Formats remains open.** Validation errors still return a bare `field -> message` map while domain errors return `APIResponse`. Unifying these would change the wire contract for existing validation-error consumers, so it's left as-is pending a decision on how to shape that change.
