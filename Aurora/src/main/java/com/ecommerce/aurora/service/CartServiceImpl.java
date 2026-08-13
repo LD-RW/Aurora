@@ -65,20 +65,37 @@ public class CartServiceImpl implements CartService {
 
         cartRepository.save(cart);
 
+        return convertToDto(cart);
+    }
+
+    @Override
+    public List<CartDTO> getAllCarts() {
+        return cartRepository.findAll().stream()
+                .map(this::convertToDto)
+                .toList();
+    }
+
+    @Override
+    public CartDTO getCart(Long cartId) {
+        Cart cart = cartRepository.findCartByEmailAndCartId(authUtil.loggedInEmail(), cartId);
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart", "cartId", cartId);
+        }
+        return convertToDto(cart);
+    }
+
+    private CartDTO convertToDto(Cart cart) {
         CartDTO cartDTO = new CartDTO();
         cartDTO.setCartId(cart.getCartId());
         cartDTO.setTotalPrice(cart.getTotalPrice());
 
-        List<CartItem> cartItems = cart.getItems();
-
-        List<ProductDTO> productDTOs = cartItems.stream().map(item -> {
+        List<ProductDTO> productDTOs = cart.getItems().stream().map(item -> {
             ProductDTO productDTO = productMapper.productToProductDTO(item.getProduct());
             productDTO.setQuantity(item.getQuantity());
             return productDTO;
         }).toList();
 
         cartDTO.setProducts(productDTOs);
-
         return cartDTO;
     }
 
