@@ -37,9 +37,6 @@ public class CategoryServiceImpl implements CategoryService{
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
         Page<Category> categoryPage = categoryRepository.findAll(pageDetails);
         List<Category> categories = categoryPage.getContent();
-        if(categories.isEmpty()){
-            throw new APIException("No categories were created till now.");
-        }
         List<CategoryDTO> categoryDTOS = categories.stream()
                 .map(categoryMapper::categoryToCategoryDTO)
                 .toList();
@@ -76,14 +73,14 @@ public class CategoryServiceImpl implements CategoryService{
     @Override
     public CategoryDTO updateCategory(CategoryDTO categoryDTO, Long categoryId) {
         Category category = categoryMapper.categoryDTOToCategory(categoryDTO);
-        Category savedOptionalCategory = categoryRepository.findById(categoryId)
+        categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "Category Id", categoryId));
         Category updatedCategory = categoryRepository.findByCategoryName(category.getCategoryName());
         if(updatedCategory != null){
             throw new APIException("Category with name " + category.getCategoryName() + " already exists !!!");
         }
         category.setCategoryId(categoryId);
-        categoryRepository.save(category);
-        return categoryMapper.categoryToCategoryDTO(savedOptionalCategory);
+        Category savedCategory = categoryRepository.save(category);
+        return categoryMapper.categoryToCategoryDTO(savedCategory);
     }
 }
