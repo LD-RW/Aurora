@@ -2,12 +2,11 @@ package com.ecommerce.aurora.service;
 
 import com.ecommerce.aurora.exceptions.APIException;
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
-import com.ecommerce.aurora.mapper.ProductMapper;
+import com.ecommerce.aurora.mapper.CartMapper;
 import com.ecommerce.aurora.model.Cart;
 import com.ecommerce.aurora.model.CartItem;
 import com.ecommerce.aurora.model.Product;
 import com.ecommerce.aurora.payload.CartDTO;
-import com.ecommerce.aurora.payload.ProductDTO;
 import com.ecommerce.aurora.repositories.CartItemRepository;
 import com.ecommerce.aurora.repositories.CartRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
@@ -26,7 +25,7 @@ public class CartServiceImpl implements CartService {
     private final AuthUtil authUtil;
     private final ProductRepository productRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductMapper productMapper;
+    private final CartMapper cartMapper;
 
     @Override
     public CartDTO addProductToCart(Long productId, Integer quantity) {
@@ -65,13 +64,13 @@ public class CartServiceImpl implements CartService {
 
         cartRepository.save(cart);
 
-        return convertToDto(cart);
+        return cartMapper.cartToCartDTO(cart);
     }
 
     @Override
     public List<CartDTO> getAllCarts() {
-        return cartRepository.findAll().stream()
-                .map(this::convertToDto)
+        return cartRepository.findAllWithItems().stream()
+                .map(cartMapper::cartToCartDTO)
                 .toList();
     }
 
@@ -81,22 +80,7 @@ public class CartServiceImpl implements CartService {
         if (cart == null) {
             throw new ResourceNotFoundException("Cart", "cartId", cartId);
         }
-        return convertToDto(cart);
-    }
-
-    private CartDTO convertToDto(Cart cart) {
-        CartDTO cartDTO = new CartDTO();
-        cartDTO.setCartId(cart.getCartId());
-        cartDTO.setTotalPrice(cart.getTotalPrice());
-
-        List<ProductDTO> productDTOs = cart.getItems().stream().map(item -> {
-            ProductDTO productDTO = productMapper.productToProductDTO(item.getProduct());
-            productDTO.setQuantity(item.getQuantity());
-            return productDTO;
-        }).toList();
-
-        cartDTO.setProducts(productDTOs);
-        return cartDTO;
+        return cartMapper.cartToCartDTO(cart);
     }
 
     private Cart createCart() {

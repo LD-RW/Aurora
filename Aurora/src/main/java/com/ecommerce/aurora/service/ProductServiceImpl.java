@@ -64,21 +64,7 @@ public class ProductServiceImpl implements ProductService {
         Sort sortByAndOrder = Sort.by(direction, sortBy);
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
         Page<Product> productPage = productRepository.findAll(pageDetails);
-        List<Product> products = productPage.getContent();
-        if(products.isEmpty()) {
-            throw new APIException("No Products were created till now");
-        }
-        List<ProductDTO> productDTOS = products.stream()
-                .map(productMapper::productToProductDTO)
-                .toList();
-        ProductResponse productResponse = new ProductResponse();
-        productResponse.setContent(productDTOS);
-        productResponse.setPageNumber(productPage.getNumber());
-        productResponse.setPageSize(productPage.getSize());
-        productResponse.setTotalPages(productPage.getTotalPages());
-        productResponse.setTotalElements(productPage.getTotalElements());
-        productResponse.setLastPage(productPage.isLast());
-        return productResponse;
+        return buildProductResponse(productPage);
     }
 
     @Override
@@ -94,21 +80,7 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
 
         Page<Product> productPage = productRepository.findByCategory(category, pageDetails);
-        List<Product> products = productPage.getContent();
-        if (products.isEmpty()) {
-            throw new APIException("No products found for this category.");
-        }
-        List<ProductDTO> productDTOS = products.stream()
-                .map(productMapper::productToProductDTO)
-                .toList();
-        ProductResponse productResponse = new ProductResponse();
-        productResponse.setContent(productDTOS);
-        productResponse.setPageNumber(productPage.getNumber());
-        productResponse.setPageSize(productPage.getSize());
-        productResponse.setTotalPages(productPage.getTotalPages());
-        productResponse.setTotalElements(productPage.getTotalElements());
-        productResponse.setLastPage(productPage.isLast());
-        return productResponse;
+        return buildProductResponse(productPage);
     }
 
     @Override
@@ -122,22 +94,7 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
 
         Page<Product> productPage = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%', pageDetails);
-        List<Product> products = productPage.getContent();
-        if (products.isEmpty()) {
-            throw new APIException("No products found with keyword: " + keyword);
-        }
-
-        List<ProductDTO> productDTOS = products.stream()
-                .map(productMapper::productToProductDTO)
-                .toList();
-        ProductResponse productResponse = new ProductResponse();
-        productResponse.setContent(productDTOS);
-        productResponse.setPageNumber(productPage.getNumber());
-        productResponse.setPageSize(productPage.getSize());
-        productResponse.setTotalPages(productPage.getTotalPages());
-        productResponse.setTotalElements(productPage.getTotalElements());
-        productResponse.setLastPage(productPage.isLast());
-        return productResponse;
+        return buildProductResponse(productPage);
     }
 
     @Override
@@ -182,6 +139,20 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
+
+    private ProductResponse buildProductResponse(Page<Product> productPage) {
+        List<ProductDTO> productDTOS = productPage.getContent().stream()
+                .map(productMapper::productToProductDTO)
+                .toList();
+        ProductResponse productResponse = new ProductResponse();
+        productResponse.setContent(productDTOS);
+        productResponse.setPageNumber(productPage.getNumber());
+        productResponse.setPageSize(productPage.getSize());
+        productResponse.setTotalPages(productPage.getTotalPages());
+        productResponse.setTotalElements(productPage.getTotalElements());
+        productResponse.setLastPage(productPage.isLast());
+        return productResponse;
+    }
 
     private BigDecimal calculateSpecialPrice(BigDecimal price, BigDecimal discount) {
         if (price == null) {
