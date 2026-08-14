@@ -13,6 +13,7 @@ import com.ecommerce.aurora.repositories.ProductRepository;
 import com.ecommerce.aurora.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -80,6 +81,51 @@ public class CartServiceImpl implements CartService {
         if (cart == null) {
             throw new ResourceNotFoundException("Cart", "cartId", cartId);
         }
+        return cartMapper.cartToCartDTO(cart);
+    }
+
+    @Override
+    @Transactional
+    public CartDTO updateProductQuantityInCart(Long productId, Integer delta) {
+        String email = authUtil.loggedInEmail();
+        Cart cart = cartRepository.findCartByEmail(email);
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart", "user", email);
+        }
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+        CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
+        if (cartItem == null) {
+            throw new ResourceNotFoundException("CartItem", "productId", productId);
+        }
+
+        int newQuantity = cartItem.getQuantity() + delta;
+
+        if (newQuantity > product.getQuantity()) {
+            throw new APIException("Please, make an order of the " + product.getProductName()
+                    + " less than or equal to the quantity " + product.getQuantity() + ".");
+        }
+
+        BigDecimal oldLineTotal = cartItem.getProductPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+
+        if (newQuantity <= 0) {
+            cart.setTotalPrice(cart.getTotalPrice().subtract(oldLineTotal));
+            cart.getItems().remove(cartItem);
+            cartItemRepository.delete(cartItem);
+        } else {
+            BigDecimal newLineTotal = product.getSpecialPrice().multiply(BigDecimal.valueOf(newQuantity));
+            cart.setTotalPrice(cart.getTotalPrice().subtract(oldLineTotal).add(newLineTotal));
+
+            cartItem.setQuantity(newQuantity);
+            cartItem.setProductPrice(product.getSpecialPrice());
+            cartItem.setDiscount(product.getDiscount());
+            cartItemRepository.save(cartItem);
+        }
+
+        cartRepository.save(cart);
+
         return cartMapper.cartToCartDTO(cart);
     }
 
