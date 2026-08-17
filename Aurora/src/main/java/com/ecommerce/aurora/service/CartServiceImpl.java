@@ -6,6 +6,7 @@ import com.ecommerce.aurora.mapper.CartMapper;
 import com.ecommerce.aurora.model.Cart;
 import com.ecommerce.aurora.model.CartItem;
 import com.ecommerce.aurora.model.Product;
+import com.ecommerce.aurora.payload.APIResponse;
 import com.ecommerce.aurora.payload.CartDTO;
 import com.ecommerce.aurora.repositories.CartItemRepository;
 import com.ecommerce.aurora.repositories.CartRepository;
@@ -108,13 +109,10 @@ public class CartServiceImpl implements CartService {
                     + " less than or equal to the quantity " + product.getQuantity() + ".");
         }
 
-        BigDecimal oldLineTotal = cartItem.getProductPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
-
         if (newQuantity <= 0) {
-            cart.setTotalPrice(cart.getTotalPrice().subtract(oldLineTotal));
-            cart.getItems().remove(cartItem);
-            cartItemRepository.delete(cartItem);
+            removeCartItem(cart, cartItem);
         } else {
+            BigDecimal oldLineTotal = cartItem.getProductPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
             BigDecimal newLineTotal = product.getSpecialPrice().multiply(BigDecimal.valueOf(newQuantity));
             cart.setTotalPrice(cart.getTotalPrice().subtract(oldLineTotal).add(newLineTotal));
 
@@ -127,6 +125,50 @@ public class CartServiceImpl implements CartService {
         cartRepository.save(cart);
 
         return cartMapper.cartToCartDTO(cart);
+    }
+
+    @Override
+    @Transactional
+    public APIResponse deleteProductFromCart(Long cartId, Long productId) {
+        Cart cart = cartRepository.findCartByEmailAndCartId(authUtil.loggedInEmail(), cartId);
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart", "cartId", cartId);
+        }
+
+        CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cartId, productId);
+        if (cartItem == null) {
+            throw new ResourceNotFoundException("CartItem", "productId", productId);
+        }
+
+        String productName = cartItem.getProduct().getProductName();
+
+        removeCartItem(cart, cartItem);
+        cartRepository.save(cart);
+
+        return new APIResponse("Product " + productName + " removed from the cart", true);
+    }
+
+    /**
+     * Subtracts the item's existing (not refreshed) price x quantity contribution from the
+     * cart's total and drops it from the in-memory items collection -- shared by the
+     * decrease-to-zero branch of updateProductQuantityInCart and the explicit delete endpoint.
+     *
+     * Removing from cart.getItems() is enough to delete the row: Cart.items is mapped with
+     * orphanRemoval = true, so Hibernate schedules its own DELETE for the orphaned CartItem at
+     * the next flush. CartItemRepository.deleteByCartIdAndProductId is deliberately NOT called
+     * here -- confirmed via SQL logging that Hibernate's auto-flush (triggered because a
+     * @Modifying query must synchronize pending state first) runs the orphan-removal DELETE
+     * before the explicit query would even execute, making the explicit call a wasted
+     * round trip that always matches zero rows for this already-loaded, single-cart case.
+     * That query stays on the repository for #40's cross-cart cleanup, which deletes rows
+     * for a product across every cart that holds it without loading each Cart's full entity
+     * graph first -- a case orphanRemoval can't reach, since nothing pulls those Carts into
+     * the persistence context to have items removed from in the first place.
+     */
+    private void removeCartItem(Cart cart, CartItem cartItem) {
+        BigDecimal lineTotal = cartItem.getProductPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+        cart.setTotalPrice(cart.getTotalPrice().subtract(lineTotal));
+        cart.getItems().remove(cartItem);
     }
 
     private Cart createCart() {
