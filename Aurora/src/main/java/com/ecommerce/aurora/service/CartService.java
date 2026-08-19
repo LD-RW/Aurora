@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.service;
 
+import com.ecommerce.aurora.model.Product;
 import com.ecommerce.aurora.payload.APIResponse;
 import com.ecommerce.aurora.payload.CartDTO;
 
@@ -15,4 +16,8 @@ public interface CartService {
     CartDTO updateProductQuantityInCart(Long productId, Integer delta);
 
     APIResponse deleteProductFromCart(Long cartId, Long productId);
+
+    void syncCartItemsWithProduct(Product product);
+
+    void removeProductFromAllCarts(Long productId);
 }
