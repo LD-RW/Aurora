@@ -21,4 +21,20 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
 
     @Query(WITH_ITEMS)
     List<Cart> findAllWithItems();
+
+    /**
+     * Every cart that currently holds the given product, each with its FULL item list loaded
+     * (not just the matching item) -- callers need every line to recompute a cart's total
+     * price or to locate the specific item to remove.
+     *
+     * The product filter has to live in a subquery on cartId, not a WHERE directly on the
+     * joined-fetched i/p aliases. Filtering a LEFT JOIN FETCH's own join condition would
+     * truncate which CartItem rows get fetched to only ones matching the product, which is
+     * wrong here -- it would silently drop every OTHER item in an affected cart from
+     * cart.getItems(), corrupting any total-price recomputation that iterates it. The subquery
+     * only decides which Cart rows are selected; the LEFT JOIN FETCH then pulls in all of each
+     * selected cart's items, unfiltered.
+     */
+    @Query(WITH_ITEMS + "WHERE c.cartId IN (SELECT ci.cart.cartId FROM CartItem ci WHERE ci.product.productId = ?1)")
+    List<Cart> findAllContainingProduct(Long productId);
 }

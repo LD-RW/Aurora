@@ -18,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -33,6 +34,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductMapper productMapper;
     private final FileService fileService;
+    private final CartService cartService;
     @Value("${project.image}")
     private String path;
     @Override
@@ -98,8 +100,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
-        
+
         Product product = productMapper.productDTOToProduct(productDTO);
         Product productFromDb =  productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
@@ -115,14 +118,22 @@ public class ProductServiceImpl implements ProductService {
         productFromDb.setPrice(product.getPrice());
         productFromDb.setDiscount(product.getDiscount());
         productFromDb.setSpecialPrice(calculateSpecialPrice(product.getPrice(), product.getDiscount()));
-        return productMapper.productToProductDTO(productRepository.save(productFromDb));
+        Product savedProduct = productRepository.save(productFromDb);
+
+        cartService.syncCartItemsWithProduct(savedProduct);
+
+        return productMapper.productToProductDTO(savedProduct);
 
     }
 
     @Override
+    @Transactional
     public ProductDTO deleteProduct(Long productId) {
         Product productToDelete = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+        cartService.removeProductFromAllCarts(productId);
+
         productRepository.delete(productToDelete);
         return productMapper.productToProductDTO(productToDelete);
     }

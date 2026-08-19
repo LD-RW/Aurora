@@ -148,27 +148,70 @@ public class CartServiceImpl implements CartService {
         return new APIResponse("Product " + productName + " removed from the cart", true);
     }
 
+    @Override
+    @Transactional
+    public void syncCartItemsWithProduct(Product product) {
+        List<Cart> carts = cartRepository.findAllContainingProduct(product.getProductId());
+        for (Cart cart : carts) {
+            for (CartItem item : cart.getItems()) {
+                if (item.getProduct().getProductId().equals(product.getProductId())) {
+                    item.setProductPrice(product.getSpecialPrice());
+                    item.setDiscount(product.getDiscount());
+                    cartItemRepository.save(item);
+                }
+            }
+            recomputeTotalPrice(cart);
+            cartRepository.save(cart);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void removeProductFromAllCarts(Long productId) {
+        List<Cart> carts = cartRepository.findAllContainingProduct(productId);
+        for (Cart cart : carts) {
+            CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
+            removeCartItem(cart, cartItem);
+            cartRepository.save(cart);
+        }
+    }
+
     /**
      * Subtracts the item's existing (not refreshed) price x quantity contribution from the
      * cart's total and drops it from the in-memory items collection -- shared by the
-     * decrease-to-zero branch of updateProductQuantityInCart and the explicit delete endpoint.
+     * decrease-to-zero branch of updateProductQuantityInCart, the explicit delete endpoint, and
+     * removeProductFromAllCarts.
      *
      * Removing from cart.getItems() is enough to delete the row: Cart.items is mapped with
      * orphanRemoval = true, so Hibernate schedules its own DELETE for the orphaned CartItem at
-     * the next flush. CartItemRepository.deleteByCartIdAndProductId is deliberately NOT called
-     * here -- confirmed via SQL logging that Hibernate's auto-flush (triggered because a
-     * @Modifying query must synchronize pending state first) runs the orphan-removal DELETE
-     * before the explicit query would even execute, making the explicit call a wasted
-     * round trip that always matches zero rows for this already-loaded, single-cart case.
-     * That query stays on the repository for #40's cross-cart cleanup, which deletes rows
-     * for a product across every cart that holds it without loading each Cart's full entity
-     * graph first -- a case orphanRemoval can't reach, since nothing pulls those Carts into
-     * the persistence context to have items removed from in the first place.
+     * the next flush. Every caller of this method reaches it via a Cart already loaded into the
+     * persistence context -- including removeProductFromAllCarts, via
+     * CartRepository.findAllContainingProduct -- so orphanRemoval covers every case here.
+     * CartItemRepository used to also carry a @Modifying bulk DELETE query as a second removal
+     * path, kept specifically for this cross-cart case on the assumption that it would need to
+     * delete rows for carts never loaded into memory. It didn't: this method loads every
+     * affected cart anyway (to recompute totals / locate the right item), so the bulk query was
+     * deleted rather than left as unused, unreachable code.
      */
     private void removeCartItem(Cart cart, CartItem cartItem) {
         BigDecimal lineTotal = cartItem.getProductPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity()));
         cart.setTotalPrice(cart.getTotalPrice().subtract(lineTotal));
         cart.getItems().remove(cartItem);
+    }
+
+    /**
+     * Sums every line in the cart from scratch, rather than the subtract-old/add-new delta
+     * math updateProductQuantityInCart uses. That incremental approach only works cleanly for
+     * a single already-known item; here, syncCartItemsWithProduct is iterating carts it just
+     * loaded and doesn't have a meaningful "old total" to subtract from other than the one
+     * already stored on the entity, so recomputing from the (now-updated) line items is both
+     * simpler and self-correcting if the stored total had ever drifted.
+     */
+    private void recomputeTotalPrice(Cart cart) {
+        BigDecimal total = cart.getItems().stream()
+                .map(item -> item.getProductPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        cart.setTotalPrice(total);
     }
 
     private Cart createCart() {
