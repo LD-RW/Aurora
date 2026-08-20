@@ -9,3 +9,6 @@ Okta
 signin
 allowlist
 plaintext
+Adminer
+datasource
+datasources
