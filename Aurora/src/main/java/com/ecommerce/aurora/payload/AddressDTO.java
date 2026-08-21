@@ -1,31 +1,17 @@
-package com.ecommerce.aurora.model;
+package com.ecommerce.aurora.payload;
 
 
-import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Entity
-@Table(name = "addresses")
-@AllArgsConstructor
+@Data
 @NoArgsConstructor
-@Getter
-@Setter
-public class Address {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+@AllArgsConstructor
+public class AddressDTO {
     private Long addressId;
-
-    public Address(String street, String buildingName, String city, String state, String country, String pinCode) {
-        this.street = street;
-        this.buildingName = buildingName;
-        this.city = city;
-        this.state = state;
-        this.country = country;
-        this.pinCode = pinCode;
-    }
 
     @NotBlank
     @Size(min = 4, message = "Street name must be at least 4 characters")
@@ -50,10 +36,4 @@ public class Address {
     @NotBlank
     @Size(min = 5, message = "Pin code must be at least 5 characters")
     private String pinCode;
-
-
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
 }
