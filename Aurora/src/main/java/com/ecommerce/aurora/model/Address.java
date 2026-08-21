@@ -40,7 +40,7 @@ public class Address {
     private String city;
 
     @NotBlank
-    @Size(min = 2, message = "City name must be at least 2 characters")
+    @Size(min = 2, message = "State name must be at least 2 characters")
     private String state;
 
     @NotBlank
@@ -48,7 +48,7 @@ public class Address {
     private String country;
 
     @NotBlank
-    @Size(min = 5, message = "City name must be at least 5 characters")
+    @Size(min = 5, message = "Pin code must be at least 5 characters")
     private String pinCode;
 
 
