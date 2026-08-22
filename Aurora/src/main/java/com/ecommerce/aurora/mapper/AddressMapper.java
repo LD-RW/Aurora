@@ -10,5 +10,6 @@ public interface AddressMapper {
     AddressDTO addressToAddressDTO(Address address);
 
     @Mapping(target = "user", ignore = true)
+    @Mapping(target = "addressId", ignore = true)
     Address addressDTOToAddress(AddressDTO addressDTO);
 }
