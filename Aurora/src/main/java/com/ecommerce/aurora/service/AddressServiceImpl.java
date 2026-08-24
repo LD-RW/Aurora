@@ -9,6 +9,8 @@ import com.ecommerce.aurora.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AddressServiceImpl implements AddressService {
@@ -27,5 +29,12 @@ public class AddressServiceImpl implements AddressService {
         Address savedAddress = addressRepository.save(address);
 
         return addressMapper.addressToAddressDTO(savedAddress);
+    }
+
+    @Override
+    public List<AddressDTO> getAllAddresses() {
+        return addressRepository.findAll().stream()
+                .map(addressMapper::addressToAddressDTO)
+                .toList();
     }
 }
