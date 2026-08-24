@@ -9,6 +9,8 @@ import com.ecommerce.aurora.repositories.AddressRepository;
 import com.ecommerce.aurora.repositories.RoleRepository;
 import com.ecommerce.aurora.repositories.UserRepository;
 import com.ecommerce.aurora.security.services.UserDetailsImpl;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,9 @@ class AddressControllerTest {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @AfterEach
     void clearSecurityContext() {
@@ -230,6 +235,57 @@ class AddressControllerTest {
     @Test
     void rejectsAnUnauthenticatedRequestToGetAddressById() throws Exception {
         mockMvc.perform(get("/api/addresses/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void returnsOnlyTheCurrentUsersAddresses() throws Exception {
+        User owner = userRepository.save(new User("myAddressesOwner", "password12345", "myaddresses@example.com"));
+        Address firstAddress = new Address("First Street", "First Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        firstAddress.setUser(owner);
+        addressRepository.save(firstAddress);
+        Address secondAddress = new Address("Second Street", "Second Building", "Amman", "Amman Governorate", "Jordan", "11184");
+        secondAddress.setUser(owner);
+        addressRepository.save(secondAddress);
+
+        User otherUser = userRepository.save(new User("myAddressesOther", "password12345", "myaddressesother@example.com"));
+        Address otherUsersAddress = new Address("Other Street", "Other Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+        otherUsersAddress.setUser(otherUser);
+        addressRepository.save(otherUsersAddress);
+
+        // Force a fresh read of `owner` for authentication: within this single test
+        // transaction, `owner`'s in-memory `addresses` collection was never touched
+        // before the two addresses above were created via their owning (Address) side.
+        // Without clearing the persistence context, Hibernate's first-level cache would
+        // hand the controller this exact same `User` instance later, and the *first*
+        // access to its `addresses` collection would still correctly lazy-load from the
+        // database -- so this only matters here because the assertion happens inside
+        // the same transaction as the setup, which a real request never does (each HTTP
+        // request gets its own persistence context).
+        entityManager.flush();
+        entityManager.clear();
+        User refreshedOwner = userRepository.findById(owner.getUserId()).orElseThrow();
+        authenticateAs(refreshedOwner);
+
+        mockMvc.perform(get("/api/users/addresses"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[*].street", org.hamcrest.Matchers.containsInAnyOrder("First Street", "Second Street")));
+    }
+
+    @Test
+    void returnsAnEmptyListWhenTheCurrentUserHasNoAddresses() throws Exception {
+        User user = userRepository.save(new User("noAddressesUser", "password12345", "noaddresses@example.com"));
+        authenticateAs(user);
+
+        mockMvc.perform(get("/api/users/addresses"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToGetCurrentUserAddresses() throws Exception {
+        mockMvc.perform(get("/api/users/addresses"))
                 .andExpect(status().isUnauthorized());
     }
 

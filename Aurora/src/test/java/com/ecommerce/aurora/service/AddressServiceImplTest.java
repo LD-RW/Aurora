@@ -137,4 +137,24 @@ class AddressServiceImplTest {
         assertThatThrownBy(() -> addressService.getAddressById(999L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void returnsAddressesBelongingToTheLoggedInUser() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        Address firstAddress = new Address("First Street", "First Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        Address secondAddress = new Address("Second Street", "Second Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+        User loggedInUser = new User("someone", "password12345", "someone@example.com");
+        loggedInUser.setAddresses(List.of(firstAddress, secondAddress));
+        AddressDTO firstDto = new AddressDTO(1L, "First Street", "First Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        AddressDTO secondDto = new AddressDTO(2L, "Second Street", "Second Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        when(authUtil.loggedInUser()).thenReturn(loggedInUser);
+        when(addressMapper.addressToAddressDTO(firstAddress)).thenReturn(firstDto);
+        when(addressMapper.addressToAddressDTO(secondAddress)).thenReturn(secondDto);
+
+        List<AddressDTO> result = addressService.getCurrentUserAddresses();
+
+        assertThat(result).containsExactly(firstDto, secondDto);
+    }
 }
