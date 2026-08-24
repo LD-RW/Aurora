@@ -9,6 +9,7 @@ import com.ecommerce.aurora.repositories.AddressRepository;
 import com.ecommerce.aurora.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -44,10 +45,7 @@ public class AddressServiceImpl implements AddressService {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
 
-        boolean isOwner = address.getUser().getUserId().equals(authUtil.loggedInUserId());
-        if (!isOwner && !authUtil.isCurrentUserAdmin()) {
-            throw new ResourceNotFoundException("Address", "addressId", addressId);
-        }
+        assertOwnerOrAdmin(address, addressId);
 
         return addressMapper.addressToAddressDTO(address);
     }
@@ -59,5 +57,32 @@ public class AddressServiceImpl implements AddressService {
         return user.getAddresses().stream()
                 .map(addressMapper::addressToAddressDTO)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public AddressDTO updateAddress(Long addressId, AddressDTO addressDTO) {
+        Address address = addressRepository.findById(addressId)
+                .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
+
+        assertOwnerOrAdmin(address, addressId);
+
+        address.setStreet(addressDTO.getStreet());
+        address.setBuildingName(addressDTO.getBuildingName());
+        address.setCity(addressDTO.getCity());
+        address.setState(addressDTO.getState());
+        address.setCountry(addressDTO.getCountry());
+        address.setPinCode(addressDTO.getPinCode());
+
+        Address updatedAddress = addressRepository.save(address);
+
+        return addressMapper.addressToAddressDTO(updatedAddress);
+    }
+
+    private void assertOwnerOrAdmin(Address address, Long addressId) {
+        boolean isOwner = address.getUser().getUserId().equals(authUtil.loggedInUserId());
+        if (!isOwner && !authUtil.isCurrentUserAdmin()) {
+            throw new ResourceNotFoundException("Address", "addressId", addressId);
+        }
     }
 }

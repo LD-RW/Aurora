@@ -28,6 +28,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -286,6 +287,119 @@ class AddressControllerTest {
     @Test
     void rejectsAnUnauthenticatedRequestToGetCurrentUserAddresses() throws Exception {
         mockMvc.perform(get("/api/users/addresses"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ownerCanUpdateTheirOwnAddress() throws Exception {
+        User owner = userRepository.save(new User("addressUpdateOwner", "password12345", "updateowner@example.com"));
+        Address address = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAs(owner);
+
+        AddressDTO updateRequestBody = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        mockMvc.perform(put("/api/addresses/" + savedAddress.getAddressId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.addressId").value(savedAddress.getAddressId()))
+                .andExpect(jsonPath("$.street").value("New Street"))
+                .andExpect(jsonPath("$.city").value("Irbid"));
+
+        Address updatedAddress = addressRepository.findById(savedAddress.getAddressId()).orElseThrow();
+        assertThat(updatedAddress.getStreet()).isEqualTo("New Street");
+        assertThat(updatedAddress.getCity()).isEqualTo("Irbid");
+        assertThat(updatedAddress.getUser().getUserId()).isEqualTo(owner.getUserId());
+    }
+
+    @Test
+    void adminCanUpdateAnyUsersAddress() throws Exception {
+        User owner = userRepository.save(new User("addressUpdateOwner2", "password12345", "updateowner2@example.com"));
+        Address address = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAsAdmin();
+
+        AddressDTO updateRequestBody = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        mockMvc.perform(put("/api/addresses/" + savedAddress.getAddressId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequestBody)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.street").value("New Street"));
+
+        Address updatedAddress = addressRepository.findById(savedAddress.getAddressId()).orElseThrow();
+        assertThat(updatedAddress.getUser().getUserId()).isEqualTo(owner.getUserId());
+    }
+
+    @Test
+    void treatsAnotherUsersAddressAsNotFoundWhenUpdatingAsANonOwnerNonAdmin() throws Exception {
+        User owner = userRepository.save(new User("addressUpdateOwner3", "password12345", "updateowner3@example.com"));
+        Address address = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        User otherUser = userRepository.save(new User("addressUpdateOther", "password12345", "updateother@example.com"));
+        authenticateAs(otherUser);
+
+        AddressDTO updateRequestBody = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        mockMvc.perform(put("/api/addresses/" + savedAddress.getAddressId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequestBody)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: " + savedAddress.getAddressId()));
+
+        Address untouchedAddress = addressRepository.findById(savedAddress.getAddressId()).orElseThrow();
+        assertThat(untouchedAddress.getStreet()).isEqualTo("Old Street");
+    }
+
+    @Test
+    void returnsNotFoundWhenUpdatingANonexistentAddress() throws Exception {
+        User user = userRepository.save(new User("addressUpdateOwner4", "password12345", "updateowner4@example.com"));
+        authenticateAs(user);
+
+        AddressDTO updateRequestBody = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        mockMvc.perform(put("/api/addresses/999999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequestBody)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: 999999"));
+    }
+
+    @Test
+    void rejectsAnInvalidUpdatePayload() throws Exception {
+        User owner = userRepository.save(new User("addressUpdateOwner5", "password12345", "updateowner5@example.com"));
+        Address address = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAs(owner);
+
+        AddressDTO tooShortPinCode = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "111");
+
+        mockMvc.perform(put("/api/addresses/" + savedAddress.getAddressId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(tooShortPinCode)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.pinCode").value("Pin code must be at least 5 characters"));
+
+        Address untouchedAddress = addressRepository.findById(savedAddress.getAddressId()).orElseThrow();
+        assertThat(untouchedAddress.getStreet()).isEqualTo("Old Street");
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToUpdateAnAddress() throws Exception {
+        AddressDTO updateRequestBody = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        mockMvc.perform(put("/api/addresses/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequestBody)))
                 .andExpect(status().isUnauthorized());
     }
 

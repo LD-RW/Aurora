@@ -157,4 +157,81 @@ class AddressServiceImplTest {
 
         assertThat(result).containsExactly(firstDto, secondDto);
     }
+
+    @Test
+    void ownerCanUpdateTheirOwnAddressFields() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address existingAddress = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        existingAddress.setUser(owner);
+        existingAddress.setAddressId(10L);
+        AddressDTO updateRequest = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+        AddressDTO expectedDto = new AddressDTO(10L, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
+        when(authUtil.loggedInUserId()).thenReturn(1L);
+        when(addressRepository.save(existingAddress)).thenReturn(existingAddress);
+        when(addressMapper.addressToAddressDTO(existingAddress)).thenReturn(expectedDto);
+
+        AddressDTO result = addressService.updateAddress(10L, updateRequest);
+
+        assertThat(result).isEqualTo(expectedDto);
+        assertThat(existingAddress.getStreet()).isEqualTo("New Street");
+        assertThat(existingAddress.getCity()).isEqualTo("Irbid");
+        assertThat(existingAddress.getUser()).isEqualTo(owner);
+        verify(addressRepository).save(existingAddress);
+    }
+
+    @Test
+    void adminCanUpdateAnyUsersAddressFields() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address existingAddress = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        existingAddress.setUser(owner);
+        existingAddress.setAddressId(10L);
+        AddressDTO updateRequest = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+        AddressDTO expectedDto = new AddressDTO(10L, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
+        when(authUtil.loggedInUserId()).thenReturn(2L);
+        when(authUtil.isCurrentUserAdmin()).thenReturn(true);
+        when(addressRepository.save(existingAddress)).thenReturn(existingAddress);
+        when(addressMapper.addressToAddressDTO(existingAddress)).thenReturn(expectedDto);
+
+        assertThat(addressService.updateAddress(10L, updateRequest)).isEqualTo(expectedDto);
+    }
+
+    @Test
+    void throwsNotFoundWhenUpdatingAsNeitherTheOwnerNorAnAdmin() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address existingAddress = new Address("Old Street", "Old Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        existingAddress.setUser(owner);
+        existingAddress.setAddressId(10L);
+        AddressDTO updateRequest = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
+        when(authUtil.loggedInUserId()).thenReturn(2L);
+        when(authUtil.isCurrentUserAdmin()).thenReturn(false);
+
+        assertThatThrownBy(() -> addressService.updateAddress(10L, updateRequest))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(existingAddress.getStreet()).isEqualTo("Old Street");
+    }
+
+    @Test
+    void throwsNotFoundWhenUpdatingANonexistentAddress() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        when(addressRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> addressService.updateAddress(999L, new AddressDTO()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }
