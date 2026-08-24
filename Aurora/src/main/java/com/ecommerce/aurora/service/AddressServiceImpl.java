@@ -51,4 +51,13 @@ public class AddressServiceImpl implements AddressService {
 
         return addressMapper.addressToAddressDTO(address);
     }
+
+    @Override
+    public List<AddressDTO> getCurrentUserAddresses() {
+        User user = authUtil.loggedInUser();
+
+        return user.getAddresses().stream()
+                .map(addressMapper::addressToAddressDTO)
+                .toList();
+    }
 }
