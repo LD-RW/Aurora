@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.service;
 
+import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.AddressMapper;
 import com.ecommerce.aurora.model.Address;
 import com.ecommerce.aurora.model.User;
@@ -36,5 +37,18 @@ public class AddressServiceImpl implements AddressService {
         return addressRepository.findAll().stream()
                 .map(addressMapper::addressToAddressDTO)
                 .toList();
+    }
+
+    @Override
+    public AddressDTO getAddressById(Long addressId) {
+        Address address = addressRepository.findById(addressId)
+                .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
+
+        boolean isOwner = address.getUser().getUserId().equals(authUtil.loggedInUserId());
+        if (!isOwner && !authUtil.isCurrentUserAdmin()) {
+            throw new ResourceNotFoundException("Address", "addressId", addressId);
+        }
+
+        return addressMapper.addressToAddressDTO(address);
     }
 }

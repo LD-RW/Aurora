@@ -1,6 +1,7 @@
 package com.ecommerce.aurora.util;
 
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
+import com.ecommerce.aurora.model.AppRole;
 import com.ecommerce.aurora.model.User;
 import com.ecommerce.aurora.repositories.UserRepository;
 import com.ecommerce.aurora.security.services.UserDetailsImpl;
@@ -27,6 +28,11 @@ public class AuthUtil {
         String email = loggedInEmail();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+    }
+
+    public boolean isCurrentUserAdmin() {
+        return currentUserDetails().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(AppRole.ROLE_ADMIN.name()));
     }
 
     private UserDetailsImpl currentUserDetails() {
