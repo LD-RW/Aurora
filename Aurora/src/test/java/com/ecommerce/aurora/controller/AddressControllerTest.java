@@ -173,6 +173,66 @@ class AddressControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void ownerCanFetchTheirOwnAddressById() throws Exception {
+        User owner = userRepository.save(new User("addressGetOwner", "password12345", "getowner@example.com"));
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAs(owner);
+
+        mockMvc.perform(get("/api/addresses/" + savedAddress.getAddressId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.addressId").value(savedAddress.getAddressId()))
+                .andExpect(jsonPath("$.street").value("Main Street"));
+    }
+
+    @Test
+    void adminCanFetchAnyUsersAddressById() throws Exception {
+        User owner = userRepository.save(new User("addressGetOwner2", "password12345", "getowner2@example.com"));
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAsAdmin();
+
+        mockMvc.perform(get("/api/addresses/" + savedAddress.getAddressId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.addressId").value(savedAddress.getAddressId()));
+    }
+
+    @Test
+    void treatsAnotherUsersAddressAsNotFoundForANonOwnerNonAdmin() throws Exception {
+        User owner = userRepository.save(new User("addressGetOwner3", "password12345", "getowner3@example.com"));
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        User otherUser = userRepository.save(new User("addressGetOther", "password12345", "getother@example.com"));
+        authenticateAs(otherUser);
+
+        mockMvc.perform(get("/api/addresses/" + savedAddress.getAddressId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: " + savedAddress.getAddressId()));
+    }
+
+    @Test
+    void returnsNotFoundForANonexistentAddressIdWithTheSameMessageShapeAsANotOwnedOne() throws Exception {
+        User user = userRepository.save(new User("addressGetOwner4", "password12345", "getowner4@example.com"));
+        authenticateAs(user);
+
+        mockMvc.perform(get("/api/addresses/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: 999999"));
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToGetAddressById() throws Exception {
+        mockMvc.perform(get("/api/addresses/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private void authenticateAs(User user) {
         UserDetailsImpl principal = UserDetailsImpl.build(user);
         var authentication = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());

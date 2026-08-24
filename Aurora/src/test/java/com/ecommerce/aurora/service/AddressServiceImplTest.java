@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.service;
 
+import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.AddressMapper;
 import com.ecommerce.aurora.model.Address;
 import com.ecommerce.aurora.model.User;
@@ -12,10 +13,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class AddressServiceImplTest {
@@ -68,5 +71,70 @@ class AddressServiceImplTest {
         List<AddressDTO> result = addressService.getAllAddresses();
 
         assertThat(result).containsExactly(firstDto, secondDto);
+    }
+
+    @Test
+    void returnsTheAddressWhenTheCallerIsTheOwner() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        address.setAddressId(10L);
+        AddressDTO expectedDto = new AddressDTO(10L, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(address));
+        when(authUtil.loggedInUserId()).thenReturn(1L);
+        when(addressMapper.addressToAddressDTO(address)).thenReturn(expectedDto);
+
+        assertThat(addressService.getAddressById(10L)).isEqualTo(expectedDto);
+    }
+
+    @Test
+    void returnsTheAddressWhenTheCallerIsAnAdminEvenIfNotTheOwner() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        address.setAddressId(10L);
+        AddressDTO expectedDto = new AddressDTO(10L, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(address));
+        when(authUtil.loggedInUserId()).thenReturn(2L);
+        when(authUtil.isCurrentUserAdmin()).thenReturn(true);
+        when(addressMapper.addressToAddressDTO(address)).thenReturn(expectedDto);
+
+        assertThat(addressService.getAddressById(10L)).isEqualTo(expectedDto);
+    }
+
+    @Test
+    void throwsNotFoundWhenTheCallerIsNeitherTheOwnerNorAnAdmin() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        address.setAddressId(10L);
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(address));
+        when(authUtil.loggedInUserId()).thenReturn(2L);
+        when(authUtil.isCurrentUserAdmin()).thenReturn(false);
+
+        assertThatThrownBy(() -> addressService.getAddressById(10L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void throwsNotFoundWhenTheAddressDoesNotExist() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        when(addressRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> addressService.getAddressById(999L))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }
