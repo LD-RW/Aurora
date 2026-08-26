@@ -234,4 +234,74 @@ class AddressServiceImplTest {
         assertThatThrownBy(() -> addressService.updateAddress(999L, new AddressDTO()))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void ownerCanDeleteTheirOwnAddress() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address existingAddress = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        existingAddress.setUser(owner);
+        existingAddress.setAddressId(10L);
+
+        AddressDTO expectedDto = new AddressDTO(10L, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
+        when(authUtil.loggedInUserId()).thenReturn(1L);
+        when(addressMapper.addressToAddressDTO(existingAddress)).thenReturn(expectedDto);
+
+        AddressDTO result = addressService.deleteAddress(10L);
+
+        assertThat(result).isEqualTo(expectedDto);
+        verify(addressRepository).delete(existingAddress);
+    }
+
+    @Test
+    void adminCanDeleteAnyUsersAddress() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address existingAddress = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        existingAddress.setUser(owner);
+        existingAddress.setAddressId(10L);
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
+        when(authUtil.loggedInUserId()).thenReturn(2L);
+        when(authUtil.isCurrentUserAdmin()).thenReturn(true);
+
+        addressService.deleteAddress(10L);
+
+        verify(addressRepository).delete(existingAddress);
+    }
+
+    @Test
+    void throwsNotFoundWhenDeletingAsNeitherTheOwnerNorAnAdminAndNeverDeletes() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        User owner = new User("owner", "password12345", "owner@example.com");
+        owner.setUserId(1L);
+        Address existingAddress = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        existingAddress.setUser(owner);
+        existingAddress.setAddressId(10L);
+
+        when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
+        when(authUtil.loggedInUserId()).thenReturn(2L);
+        when(authUtil.isCurrentUserAdmin()).thenReturn(false);
+
+        assertThatThrownBy(() -> addressService.deleteAddress(10L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(addressRepository, org.mockito.Mockito.never()).delete(org.mockito.Mockito.any());
+    }
+
+    @Test
+    void throwsNotFoundWhenDeletingANonexistentAddress() {
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+
+        when(addressRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> addressService.deleteAddress(999L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }

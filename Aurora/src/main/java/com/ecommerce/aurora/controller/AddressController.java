@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,5 +53,11 @@ public class AddressController {
                                                       @Valid @RequestBody AddressDTO addressDTO) {
         AddressDTO updatedAddressDTO = addressService.updateAddress(addressId, addressDTO);
         return new ResponseEntity<>(updatedAddressDTO, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/addresses/{addressId}")
+    public ResponseEntity<AddressDTO> deleteAddress(@PathVariable Long addressId) {
+        AddressDTO deletedAddressDTO = addressService.deleteAddress(addressId);
+        return new ResponseEntity<>(deletedAddressDTO, HttpStatus.OK);
     }
 }
