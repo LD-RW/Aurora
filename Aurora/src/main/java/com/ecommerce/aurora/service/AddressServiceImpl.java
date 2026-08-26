@@ -79,6 +79,18 @@ public class AddressServiceImpl implements AddressService {
         return addressMapper.addressToAddressDTO(updatedAddress);
     }
 
+    @Override
+    public AddressDTO deleteAddress(Long addressId) {
+        Address address = addressRepository.findById(addressId)
+                .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
+
+        assertOwnerOrAdmin(address, addressId);
+
+        addressRepository.delete(address);
+
+        return addressMapper.addressToAddressDTO(address);
+    }
+
     private void assertOwnerOrAdmin(Address address, Long addressId) {
         boolean isOwner = address.getUser().getUserId().equals(authUtil.loggedInUserId());
         if (!isOwner && !authUtil.isCurrentUserAdmin()) {
