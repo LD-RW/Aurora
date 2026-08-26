@@ -26,6 +26,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -400,6 +401,71 @@ class AddressControllerTest {
         mockMvc.perform(put("/api/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequestBody)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ownerCanDeleteTheirOwnAddress() throws Exception {
+        User owner = userRepository.save(new User("addressDeleteOwner", "password12345", "deleteowner@example.com"));
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAs(owner);
+
+        mockMvc.perform(delete("/api/addresses/" + savedAddress.getAddressId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.addressId").value(savedAddress.getAddressId()))
+                .andExpect(jsonPath("$.street").value("Main Street"));
+
+        assertThat(addressRepository.findById(savedAddress.getAddressId())).isEmpty();
+    }
+
+    @Test
+    void adminCanDeleteAnyUsersAddress() throws Exception {
+        User owner = userRepository.save(new User("addressDeleteOwner2", "password12345", "deleteowner2@example.com"));
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        authenticateAsAdmin();
+
+        mockMvc.perform(delete("/api/addresses/" + savedAddress.getAddressId()))
+                .andExpect(status().isOk());
+
+        assertThat(addressRepository.findById(savedAddress.getAddressId())).isEmpty();
+    }
+
+    @Test
+    void treatsAnotherUsersAddressAsNotFoundWhenDeletingAsANonOwnerNonAdmin() throws Exception {
+        User owner = userRepository.save(new User("addressDeleteOwner3", "password12345", "deleteowner3@example.com"));
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(owner);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        User otherUser = userRepository.save(new User("addressDeleteOther", "password12345", "deleteother@example.com"));
+        authenticateAs(otherUser);
+
+        mockMvc.perform(delete("/api/addresses/" + savedAddress.getAddressId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: " + savedAddress.getAddressId()));
+
+        assertThat(addressRepository.findById(savedAddress.getAddressId())).isPresent();
+    }
+
+    @Test
+    void returnsNotFoundWhenDeletingANonexistentAddress() throws Exception {
+        User user = userRepository.save(new User("addressDeleteOwner4", "password12345", "deleteowner4@example.com"));
+        authenticateAs(user);
+
+        mockMvc.perform(delete("/api/addresses/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: 999999"));
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToDeleteAnAddress() throws Exception {
+        mockMvc.perform(delete("/api/addresses/1"))
                 .andExpect(status().isUnauthorized());
     }
 
