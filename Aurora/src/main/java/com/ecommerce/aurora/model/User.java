@@ -76,4 +76,11 @@ public class User {
     @ToString.Exclude
     @OneToOne(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     private Cart cart;
+
+    // No cascade/orphanRemoval: unlike addresses/products, orders are immutable
+    // historical records that must never be deleted just by detaching them from
+    // this in-memory list.
+    @ToString.Exclude
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Order> orders = new ArrayList<>();
 }
