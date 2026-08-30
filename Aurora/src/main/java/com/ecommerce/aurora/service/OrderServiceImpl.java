@@ -64,6 +64,9 @@ public class OrderServiceImpl implements OrderService {
 
         Address address = addressRepository.findById(orderRequestDTO.getAddressId())
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", orderRequestDTO.getAddressId()));
+        if (!address.getUser().getUserId().equals(user.getUserId())) {
+            throw new ResourceNotFoundException("Address", "addressId", orderRequestDTO.getAddressId());
+        }
 
         Payment payment = new Payment(paymentMethod, orderRequestDTO.getPgPaymentId(),
                 orderRequestDTO.getPgStatus(), orderRequestDTO.getPgResponseMessage(), orderRequestDTO.getPgName());

@@ -202,6 +202,56 @@ class OrderControllerTest {
     }
 
     @Test
+    void rejectsPlacingAnOrderWithAnotherUsersAddress() throws Exception {
+        User addressOwner = userRepository.save(new User("addressOwnerVictim", "password12345", "addressownervictim@example.com"));
+        Address victimsAddress = new Address("Victim Street", "Victim Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        victimsAddress.setUser(addressOwner);
+        Address savedVictimsAddress = addressRepository.saveAndFlush(victimsAddress);
+
+        User attacker = userRepository.save(new User("addressAttacker", "password12345", "addressattacker@example.com"));
+        authenticateAs(attacker);
+
+        Product product = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        addToCart(attacker, product, 1);
+
+        OrderRequestDTO requestBody = new OrderRequestDTO(savedVictimsAddress.getAddressId(), "stripe", "pg-123", "success", "ok");
+
+        mockMvc.perform(post("/api/order/users/payments/card")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Address not found with addressId: " + savedVictimsAddress.getAddressId()));
+
+        assertThat(orderRepository.count()).isZero();
+    }
+
+    @Test
+    void rejectsAnInvalidPaymentMethodWithAClientErrorNotAServerError() throws Exception {
+        User user = userRepository.save(new User("shortPayMethodUser", "password12345", "shortpaymentmethod@example.com"));
+        authenticateAs(user);
+
+        Address address = new Address("Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(user);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        Product product = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        addToCart(user, product, 1);
+
+        OrderRequestDTO requestBody = new OrderRequestDTO(savedAddress.getAddressId(), "stripe", "pg-123", "success", "ok");
+
+        // No orderRepository.count() follow-up here: once the ConstraintViolationException
+        // fires mid-flush, this test's own shared transaction is left in a state where any
+        // further query on the same session re-triggers the same failed flush. A real
+        // request never shares a transaction with anything after it, so this is purely a
+        // test-harness artifact -- the point of this test is the status code, not a second
+        // query through the same broken session.
+        mockMvc.perform(post("/api/order/users/payments/x")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejectsAnInvalidPayloadMissingAddressId() throws Exception {
         User user = userRepository.save(new User("missingAddressIdUser", "password12345", "missingaddressid@example.com"));
         authenticateAs(user);

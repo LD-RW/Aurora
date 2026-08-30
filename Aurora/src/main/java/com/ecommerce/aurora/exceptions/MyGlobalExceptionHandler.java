@@ -1,6 +1,8 @@
 package com.ecommerce.aurora.exceptions;
 
 import com.ecommerce.aurora.payload.APIResponse;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -42,6 +44,24 @@ public class MyGlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<APIResponse> authenticationExceptionHandler(AuthenticationException e){
         APIResponse apiResponse = new APIResponse("Bad credentials", false);
         return new ResponseEntity<>(apiResponse, HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * Bean Validation on an entity (e.g. Payment.paymentMethod) fires at persist/flush time,
+     * not at the controller boundary -- with no handler, it fell through to the catch-all
+     * below as a 500, even though it's really a 400-shaped client error.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, String>> constraintViolationExceptionHandler(ConstraintViolationException e) {
+        Map<String, String> response = new HashMap<>();
+        for (ConstraintViolation<?> violation : e.getConstraintViolations()) {
+            String propertyPath = violation.getPropertyPath().toString();
+            String fieldName = propertyPath.contains(".")
+                    ? propertyPath.substring(propertyPath.lastIndexOf('.') + 1)
+                    : propertyPath;
+            response.put(fieldName, violation.getMessage());
+        }
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     /**
