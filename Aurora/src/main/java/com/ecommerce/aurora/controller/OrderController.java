@@ -1,0 +1,29 @@
+package com.ecommerce.aurora.controller;
+
+import com.ecommerce.aurora.payload.OrderDTO;
+import com.ecommerce.aurora.payload.OrderRequestDTO;
+import com.ecommerce.aurora.service.OrderService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    @PostMapping("/order/users/payments/{paymentMethod}")
+    public ResponseEntity<OrderDTO> placeOrder(@PathVariable String paymentMethod,
+                                                 @Valid @RequestBody OrderRequestDTO orderRequestDTO) {
+        OrderDTO orderDTO = orderService.placeOrder(paymentMethod, orderRequestDTO);
+        return new ResponseEntity<>(orderDTO, HttpStatus.CREATED);
+    }
+}
