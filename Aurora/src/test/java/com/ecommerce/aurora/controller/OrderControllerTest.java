@@ -1,18 +1,26 @@
 package com.ecommerce.aurora.controller;
 
 import com.ecommerce.aurora.model.Address;
+import com.ecommerce.aurora.model.AppRole;
 import com.ecommerce.aurora.model.Cart;
 import com.ecommerce.aurora.model.CartItem;
 import com.ecommerce.aurora.model.Category;
+import com.ecommerce.aurora.model.Order;
+import com.ecommerce.aurora.model.OrderItem;
+import com.ecommerce.aurora.model.Payment;
 import com.ecommerce.aurora.model.Product;
+import com.ecommerce.aurora.model.Role;
 import com.ecommerce.aurora.model.User;
 import com.ecommerce.aurora.payload.OrderRequestDTO;
 import com.ecommerce.aurora.repositories.AddressRepository;
 import com.ecommerce.aurora.repositories.CartItemRepository;
 import com.ecommerce.aurora.repositories.CartRepository;
 import com.ecommerce.aurora.repositories.CategoryRepository;
+import com.ecommerce.aurora.repositories.OrderItemRepository;
 import com.ecommerce.aurora.repositories.OrderRepository;
+import com.ecommerce.aurora.repositories.PaymentRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
+import com.ecommerce.aurora.repositories.RoleRepository;
 import com.ecommerce.aurora.repositories.UserRepository;
 import com.ecommerce.aurora.security.services.UserDetailsImpl;
 import jakarta.persistence.EntityManager;
@@ -30,8 +38,11 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,6 +78,15 @@ class OrderControllerTest {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private OrderItemRepository orderItemRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -272,6 +292,130 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void listsAllOrdersAcrossEveryUserForAnAdminWithWorkingPagination() throws Exception {
+        User firstUser = userRepository.save(new User("listOrdersFirst", "password12345", "listordersfirst@example.com"));
+        User secondUser = userRepository.save(new User("listOrdersSecond", "password12345", "listorderssecond@example.com"));
+        User thirdUser = userRepository.save(new User("listOrdersThird", "password12345", "listordersthird@example.com"));
+
+        Product firstProduct = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        Product secondProduct = createProduct("Wireless Mouse", 20, BigDecimal.valueOf(50));
+        Product thirdProduct = createProduct("Mechanical Keyboard", 15, BigDecimal.valueOf(100));
+
+        createOrder(firstUser, firstProduct, 1, BigDecimal.valueOf(1500));
+        createOrder(secondUser, secondProduct, 2, BigDecimal.valueOf(50));
+        createOrder(thirdUser, thirdProduct, 3, BigDecimal.valueOf(100));
+
+        authenticateAsAdmin();
+
+        // Page 1 of 2 (pageSize=2): proves this is real database-level pagination, not
+        // the whole result set fetched and sliced in memory -- and that each row's
+        // nested orderItems/product data still comes back correctly despite that.
+        mockMvc.perform(get("/api/admin/orders?pageNumber=0&pageSize=2&sortBy=orderId&sortOrder=asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.pageNumber").value(0))
+                .andExpect(jsonPath("$.pageSize").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.lastPage").value(false))
+                .andExpect(jsonPath("$.content[0].orderItems[0].product.productName").value("Gaming Laptop"))
+                .andExpect(jsonPath("$.content[0].orderItems[0].quantity").value(1))
+                .andExpect(jsonPath("$.content[1].orderItems[0].product.productName").value("Wireless Mouse"))
+                .andExpect(jsonPath("$.content[1].orderItems[0].quantity").value(2));
+
+        // Page 2 of 2: the remaining order, not a repeat of page 1's content.
+        mockMvc.perform(get("/api/admin/orders?pageNumber=1&pageSize=2&sortBy=orderId&sortOrder=asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.lastPage").value(true))
+                .andExpect(jsonPath("$.content[0].orderItems[0].product.productName").value("Mechanical Keyboard"))
+                .andExpect(jsonPath("$.content[0].orderItems[0].quantity").value(3));
+    }
+
+    @Test
+    void returnsAnEmptyPageWhenThereAreNoOrders() throws Exception {
+        authenticateAsAdmin();
+
+        mockMvc.perform(get("/api/admin/orders"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void rejectsAnInvalidSortFieldWhenListingAllOrders() throws Exception {
+        authenticateAsAdmin();
+
+        mockMvc.perform(get("/api/admin/orders?sortBy=notARealField"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsAnAuthenticatedNonAdminUserFromListingAllOrders() throws Exception {
+        User user = userRepository.save(new User("listOrdersNonAdmin", "password12345", "listordersnonadmin@example.com"));
+        authenticateAs(user);
+
+        mockMvc.perform(get("/api/admin/orders"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToListAllOrders() throws Exception {
+        mockMvc.perform(get("/api/admin/orders"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private Order createOrder(User user, Product product, int quantity, BigDecimal pricePerUnit) {
+        Address address = new Address("Order Street", "Order Building", "Amman", "Amman Governorate", "Jordan", "11183");
+        address.setUser(user);
+        Address savedAddress = addressRepository.saveAndFlush(address);
+
+        Payment payment = paymentRepository.saveAndFlush(new Payment("card", "pg-1", "success", "ok", "stripe"));
+
+        Order order = new Order();
+        order.setUser(user);
+        order.setAddress(savedAddress);
+        order.setPayment(payment);
+        order.setOrderDate(LocalDate.now());
+        order.setTotalAmount(pricePerUnit.multiply(BigDecimal.valueOf(quantity)));
+        order.setOrderStatus("Order Accepted");
+        Order savedOrder = orderRepository.saveAndFlush(order);
+
+        OrderItem orderItem = new OrderItem();
+        orderItem.setOrder(savedOrder);
+        orderItem.setProduct(product);
+        orderItem.setQuantity(quantity);
+        orderItem.setDiscount(BigDecimal.ZERO);
+        orderItem.setOrderedProductPrice(pricePerUnit);
+        orderItemRepository.saveAndFlush(orderItem);
+
+        // savedOrder was built with `new Order()`, so its orderItems field is still the
+        // plain, un-Hibernate-managed ArrayList from the field initializer -- it was
+        // never replaced with a real PersistentCollection the way a genuinely queried
+        // entity's would be. Once an entity's ID is known to the persistence context (as
+        // soon as it's saved, not only once it's loaded), Hibernate always trusts
+        // whatever is already sitting in that field over a later query's result for the
+        // same row -- so without detaching here, the admin list-orders endpoint's own
+        // fetch-join query later in this same test transaction would find this exact
+        // instance already present and leave its still-plain, still-empty orderItems
+        // list untouched, instead of populating it from the query that just fetched it.
+        // A real request never has this problem: Order rows only ever get loaded via a
+        // query there, never constructed with `new Order()` and then queried again.
+        entityManager.detach(savedOrder);
+
+        return savedOrder;
+    }
+
+    private void authenticateAsAdmin() {
+        Role adminRole = roleRepository.save(new Role(AppRole.ROLE_ADMIN));
+        User admin = new User("orderTestAdmin", "password12345", "orderadmin@example.com");
+        admin.setRoles(Set.of(adminRole));
+        userRepository.save(admin);
+
+        authenticateAs(admin);
     }
 
     private Product createProduct(String name, int stock, BigDecimal price) {
