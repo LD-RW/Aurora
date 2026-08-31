@@ -3,6 +3,8 @@ Lombok
 Lombok's
 DTO
 DTOs
+ADR
+ADRs
 declaratively
 Keycloak
 Okta
