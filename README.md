@@ -1,8 +1,12 @@
 # Aurora
 
 [![Aurora CI](https://github.com/LD-RW/Aurora/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LD-RW/Aurora/actions/workflows/ci.yml)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-An e-commerce REST API built with Spring Boot 4 and Java 25 -- catalog, cart, addresses, and order placement, backed by custom JWT authentication and a layered, test-driven architecture.
+Aurora is an e-commerce REST API built with Spring Boot 4 and Java 25. It covers product catalog, shopping cart, address management, and order placement, with custom JWT authentication and role-based access control.
+
+> **Aurora is a personal learning project and is still under active development.** Modules are built incrementally, one GitHub issue at a time -- see the [open issues](https://github.com/LD-RW/Aurora/issues) for what's planned next. It isn't a production-ready storefront: there's no order-history endpoint yet, no real payment gateway integration, and product search is still a basic substring match.
 
 ## Features
 
@@ -11,6 +15,46 @@ An e-commerce REST API built with Spring Boot 4 and Java 25 -- catalog, cart, ad
 - **Cart** -- add/update/remove products, automatically kept in sync when a product's price or availability changes
 - **Addresses** -- full CRUD with ownership-based authorization (an address is only visible/editable by its owner or an admin)
 - **Orders** -- converts a user's cart into a persisted order, payment record, and stock adjustment in a single atomic transaction
+
+## Getting started
+
+### Prerequisites
+
+- Java 25 (JDK)
+- Docker, only if you want to run against MySQL instead of the default in-memory database
+
+### Run it
+
+```bash
+git clone https://github.com/LD-RW/Aurora.git
+cd Aurora/Aurora
+./mvnw spring-boot:run
+```
+
+The API starts on `http://localhost:8080` against an in-memory H2 database -- nothing else to install or configure. A default admin account is seeded automatically on first startup (`admin` / `admin123`, both overridable via the `ADMIN_USERNAME` / `ADMIN_PASSWORD` environment variables).
+
+Try it once it's up:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
+```
+
+### Run the tests
+
+```bash
+cd Aurora
+./mvnw test
+```
+
+### Using MySQL instead of H2
+
+H2 resets on every restart. To run against a persistent MySQL database via Docker Compose (with a web UI to browse it), see [`Aurora/docs/running-with-mysql-or-h2.md`](Aurora/docs/running-with-mysql-or-h2.md).
+
+## Tech stack
+
+Spring Boot 4 · Spring Data JPA · Spring Security · MapStruct · Lombok · Jakarta Bean Validation · H2 (development) / MySQL 8 via Docker Compose · GitHub Actions
 
 ## Architecture
 
@@ -25,24 +69,17 @@ Every feature is tracked as a GitHub issue and shipped through a dedicated, revi
 
 ## Quality & security
 
-This isn't just CRUD scaffolding -- a recurring part of the workflow is auditing already-shipped code for real bugs, proving them with a failing test, then fixing and re-verifying:
+A recurring part of the workflow is auditing already-shipped code for real bugs, proving them with a failing test, then fixing and re-verifying:
 
 - Found and fixed multiple mass-assignment/IDOR vulnerabilities (for example, a client could overwrite another user's data by supplying an existing ID on a create request; an authenticated user could ship an order to a different user's saved address) -- each closed with a regression test that fails against the vulnerable code and passes after the fix
 - Audited and fixed N+1 query problems across the cart and product modules
 - 60+ automated tests spanning repository, service, controller, and entity layers, run in CI on every pull request across Ubuntu, Windows, and macOS
 - Prose linting (Vale) enforced in CI alongside the test suite
 
-## Tech stack
+## Contributing
 
-Spring Boot 4 · Spring Data JPA · Spring Security · MapStruct · Lombok · Jakarta Bean Validation · H2 (development) / MySQL 8 via Docker Compose · GitHub Actions
+See [CONTRIBUTING.md](CONTRIBUTING.md). This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
-## Running locally
+## License
 
-By default, Aurora runs against an in-memory H2 database with zero setup:
-
-```bash
-cd Aurora
-./mvnw spring-boot:run
-```
-
-To run against MySQL instead (via Docker Compose) and browse the schema through Adminer, see [`Aurora/docs/running-with-mysql-or-h2.md`](Aurora/docs/running-with-mysql-or-h2.md).
+[MIT](LICENSE)
