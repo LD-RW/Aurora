@@ -8,4 +8,6 @@ public interface OrderService {
     OrderDTO placeOrder(String paymentMethod, OrderRequestDTO orderRequestDTO);
 
     OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder);
+
+    OrderDTO getOrderById(Long orderId);
 }

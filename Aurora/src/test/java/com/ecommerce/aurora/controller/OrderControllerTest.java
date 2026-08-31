@@ -368,6 +368,65 @@ class OrderControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void returnsTheOrderWhenTheCallerIsTheOwner() throws Exception {
+        User user = userRepository.save(new User("getOrderOwner", "password12345", "getorderowner@example.com"));
+        Product product = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        Order order = createOrder(user, product, 2, BigDecimal.valueOf(1500));
+
+        authenticateAs(user);
+
+        mockMvc.perform(get("/api/orders/" + order.getOrderId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(order.getOrderId()))
+                .andExpect(jsonPath("$.email").value("getorderowner@example.com"))
+                .andExpect(jsonPath("$.orderItems[0].product.productName").value("Gaming Laptop"))
+                .andExpect(jsonPath("$.orderItems[0].quantity").value(2));
+    }
+
+    @Test
+    void returnsTheOrderWhenTheCallerIsAnAdminEvenIfNotTheOwner() throws Exception {
+        User owner = userRepository.save(new User("getOrderVictim", "password12345", "getordervictim@example.com"));
+        Product product = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        Order order = createOrder(owner, product, 1, BigDecimal.valueOf(1500));
+
+        authenticateAsAdmin();
+
+        mockMvc.perform(get("/api/orders/" + order.getOrderId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(order.getOrderId()));
+    }
+
+    @Test
+    void rejectsFetchingAnotherUsersOrderAsNotFound() throws Exception {
+        User owner = userRepository.save(new User("getOrderOwner2", "password12345", "getorderowner2@example.com"));
+        Product product = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        Order order = createOrder(owner, product, 1, BigDecimal.valueOf(1500));
+
+        User attacker = userRepository.save(new User("getOrderAttacker", "password12345", "getorderattacker@example.com"));
+        authenticateAs(attacker);
+
+        mockMvc.perform(get("/api/orders/" + order.getOrderId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Order not found with orderId: " + order.getOrderId()));
+    }
+
+    @Test
+    void rejectsFetchingANonexistentOrder() throws Exception {
+        User user = userRepository.save(new User("getOrderMissing", "password12345", "getordermissing@example.com"));
+        authenticateAs(user);
+
+        mockMvc.perform(get("/api/orders/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Order not found with orderId: 999999"));
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToGetAnOrderById() throws Exception {
+        mockMvc.perform(get("/api/orders/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private Order createOrder(User user, Product product, int quantity, BigDecimal pricePerUnit) {
         Address address = new Address("Order Street", "Order Building", "Amman", "Amman Governorate", "Jordan", "11183");
         address.setUser(user);

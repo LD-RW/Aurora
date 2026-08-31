@@ -45,7 +45,7 @@ public class AddressServiceImpl implements AddressService {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
 
-        assertOwnerOrAdmin(address, addressId);
+        authUtil.assertOwnerOrAdmin(address.getUser().getUserId(), "Address", "addressId", addressId);
 
         return addressMapper.addressToAddressDTO(address);
     }
@@ -65,7 +65,7 @@ public class AddressServiceImpl implements AddressService {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
 
-        assertOwnerOrAdmin(address, addressId);
+        authUtil.assertOwnerOrAdmin(address.getUser().getUserId(), "Address", "addressId", addressId);
 
         address.setStreet(addressDTO.getStreet());
         address.setBuildingName(addressDTO.getBuildingName());
@@ -84,17 +84,10 @@ public class AddressServiceImpl implements AddressService {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
 
-        assertOwnerOrAdmin(address, addressId);
+        authUtil.assertOwnerOrAdmin(address.getUser().getUserId(), "Address", "addressId", addressId);
 
         addressRepository.delete(address);
 
         return addressMapper.addressToAddressDTO(address);
-    }
-
-    private void assertOwnerOrAdmin(Address address, Long addressId) {
-        boolean isOwner = address.getUser().getUserId().equals(authUtil.loggedInUserId());
-        if (!isOwner && !authUtil.isCurrentUserAdmin()) {
-            throw new ResourceNotFoundException("Address", "addressId", addressId);
-        }
     }
 }

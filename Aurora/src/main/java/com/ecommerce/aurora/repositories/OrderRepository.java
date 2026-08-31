@@ -9,12 +9,28 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @EntityGraph(attributePaths = {"user", "address", "payment"})
     Page<Order> findAll(Pageable pageable);
+
+    /**
+     * Single-order lookup, so unlike findAll(Pageable) above there's no Pageable to
+     * collide with a collection JOIN FETCH -- every relation the response needs can
+     * be pulled eagerly in one query.
+     */
+    @Query("SELECT o FROM Order o "
+            + "LEFT JOIN FETCH o.user "
+            + "LEFT JOIN FETCH o.address "
+            + "LEFT JOIN FETCH o.payment "
+            + "LEFT JOIN FETCH o.orderItems oi "
+            + "LEFT JOIN FETCH oi.product p "
+            + "LEFT JOIN FETCH p.category "
+            + "WHERE o.orderId = ?1")
+    Optional<Order> findByIdWithDetails(Long orderId);
 
     /**
      * A JOIN FETCH across a to-many collection (orderItems) can't be combined with
