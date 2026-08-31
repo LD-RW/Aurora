@@ -5,6 +5,8 @@ DTO
 DTOs
 ADR
 ADRs
+overridable
+substring
 declaratively
 Keycloak
 Okta
