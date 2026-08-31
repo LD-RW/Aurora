@@ -134,6 +134,17 @@ public class OrderServiceImpl implements OrderService {
         return buildOrderResponse(orderPage);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public OrderDTO getOrderById(Long orderId) {
+        Order order = orderRepository.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "orderId", orderId));
+
+        authUtil.assertOwnerOrAdmin(order.getUser().getUserId(), "Order", "orderId", orderId);
+
+        return orderMapper.orderToOrderDTO(order);
+    }
+
     private OrderResponse buildOrderResponse(Page<Order> orderPage) {
         List<OrderDTO> orderDTOs = orderPage.getContent().stream()
                 .map(orderMapper::orderToOrderDTO)
