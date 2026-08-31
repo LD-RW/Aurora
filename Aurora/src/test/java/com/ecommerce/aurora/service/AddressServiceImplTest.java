@@ -17,6 +17,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
@@ -85,10 +86,10 @@ class AddressServiceImplTest {
         AddressDTO expectedDto = new AddressDTO(10L, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(address));
-        when(authUtil.loggedInUserId()).thenReturn(1L);
         when(addressMapper.addressToAddressDTO(address)).thenReturn(expectedDto);
 
         assertThat(addressService.getAddressById(10L)).isEqualTo(expectedDto);
+        verify(authUtil).assertOwnerOrAdmin(1L, "Address", "addressId", 10L);
     }
 
     @Test
@@ -103,8 +104,6 @@ class AddressServiceImplTest {
         AddressDTO expectedDto = new AddressDTO(10L, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(address));
-        when(authUtil.loggedInUserId()).thenReturn(2L);
-        when(authUtil.isCurrentUserAdmin()).thenReturn(true);
         when(addressMapper.addressToAddressDTO(address)).thenReturn(expectedDto);
 
         assertThat(addressService.getAddressById(10L)).isEqualTo(expectedDto);
@@ -121,8 +120,8 @@ class AddressServiceImplTest {
         address.setAddressId(10L);
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(address));
-        when(authUtil.loggedInUserId()).thenReturn(2L);
-        when(authUtil.isCurrentUserAdmin()).thenReturn(false);
+        doThrow(new ResourceNotFoundException("Address", "addressId", 10L))
+                .when(authUtil).assertOwnerOrAdmin(1L, "Address", "addressId", 10L);
 
         assertThatThrownBy(() -> addressService.getAddressById(10L))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -171,7 +170,6 @@ class AddressServiceImplTest {
         AddressDTO expectedDto = new AddressDTO(10L, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
-        when(authUtil.loggedInUserId()).thenReturn(1L);
         when(addressRepository.save(existingAddress)).thenReturn(existingAddress);
         when(addressMapper.addressToAddressDTO(existingAddress)).thenReturn(expectedDto);
 
@@ -197,8 +195,6 @@ class AddressServiceImplTest {
         AddressDTO expectedDto = new AddressDTO(10L, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
-        when(authUtil.loggedInUserId()).thenReturn(2L);
-        when(authUtil.isCurrentUserAdmin()).thenReturn(true);
         when(addressRepository.save(existingAddress)).thenReturn(existingAddress);
         when(addressMapper.addressToAddressDTO(existingAddress)).thenReturn(expectedDto);
 
@@ -217,8 +213,8 @@ class AddressServiceImplTest {
         AddressDTO updateRequest = new AddressDTO(null, "New Street", "New Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
-        when(authUtil.loggedInUserId()).thenReturn(2L);
-        when(authUtil.isCurrentUserAdmin()).thenReturn(false);
+        doThrow(new ResourceNotFoundException("Address", "addressId", 10L))
+                .when(authUtil).assertOwnerOrAdmin(1L, "Address", "addressId", 10L);
 
         assertThatThrownBy(() -> addressService.updateAddress(10L, updateRequest))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -248,7 +244,6 @@ class AddressServiceImplTest {
         AddressDTO expectedDto = new AddressDTO(10L, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
-        when(authUtil.loggedInUserId()).thenReturn(1L);
         when(addressMapper.addressToAddressDTO(existingAddress)).thenReturn(expectedDto);
 
         AddressDTO result = addressService.deleteAddress(10L);
@@ -268,8 +263,6 @@ class AddressServiceImplTest {
         existingAddress.setAddressId(10L);
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
-        when(authUtil.loggedInUserId()).thenReturn(2L);
-        when(authUtil.isCurrentUserAdmin()).thenReturn(true);
 
         addressService.deleteAddress(10L);
 
@@ -287,8 +280,8 @@ class AddressServiceImplTest {
         existingAddress.setAddressId(10L);
 
         when(addressRepository.findById(10L)).thenReturn(Optional.of(existingAddress));
-        when(authUtil.loggedInUserId()).thenReturn(2L);
-        when(authUtil.isCurrentUserAdmin()).thenReturn(false);
+        doThrow(new ResourceNotFoundException("Address", "addressId", 10L))
+                .when(authUtil).assertOwnerOrAdmin(1L, "Address", "addressId", 10L);
 
         assertThatThrownBy(() -> addressService.deleteAddress(10L))
                 .isInstanceOf(ResourceNotFoundException.class);
