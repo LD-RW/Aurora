@@ -35,6 +35,18 @@ public class AuthUtil {
                 .anyMatch(authority -> authority.getAuthority().equals(AppRole.ROLE_ADMIN.name()));
     }
 
+    /**
+     * Throws the same not-found exception a missing resource would throw when the
+     * current user is neither resourceOwnerId nor an admin, so the response can't be
+     * used to tell "not yours" apart from "doesn't exist".
+     */
+    public void assertOwnerOrAdmin(Long resourceOwnerId, String resourceName, String fieldName, Long resourceId) {
+        boolean isOwner = resourceOwnerId.equals(loggedInUserId());
+        if (!isOwner && !isCurrentUserAdmin()) {
+            throw new ResourceNotFoundException(resourceName, fieldName, resourceId);
+        }
+    }
+
     private UserDetailsImpl currentUserDetails() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return (UserDetailsImpl) authentication.getPrincipal();
