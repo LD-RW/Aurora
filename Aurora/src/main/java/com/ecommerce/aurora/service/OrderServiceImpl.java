@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.service;
 
+import com.ecommerce.aurora.constants.AppConstants;
 import com.ecommerce.aurora.exceptions.APIException;
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.OrderMapper;
@@ -13,6 +14,7 @@ import com.ecommerce.aurora.model.Product;
 import com.ecommerce.aurora.model.User;
 import com.ecommerce.aurora.payload.OrderDTO;
 import com.ecommerce.aurora.payload.OrderRequestDTO;
+import com.ecommerce.aurora.payload.OrderResponse;
 import com.ecommerce.aurora.repositories.AddressRepository;
 import com.ecommerce.aurora.repositories.CartRepository;
 import com.ecommerce.aurora.repositories.OrderItemRepository;
@@ -21,6 +23,10 @@ import com.ecommerce.aurora.repositories.PaymentRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import com.ecommerce.aurora.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -106,5 +112,39 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return orderMapper.orderToOrderDTO(savedOrder);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        if (!AppConstants.ALLOWED_ORDER_SORT_FIELDS.contains(sortBy)) {
+            throw new APIException("Invalid sort field: " + sortBy);
+        }
+        Sort.Direction direction = sortOrder.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Sort sortByAndOrder = Sort.by(direction, sortBy);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+
+        Page<Order> orderPage = orderRepository.findAll(pageDetails);
+
+        List<Long> orderIds = orderPage.getContent().stream().map(Order::getOrderId).toList();
+        if (!orderIds.isEmpty()) {
+            orderRepository.findAllWithItemsByOrderIdIn(orderIds);
+        }
+
+        return buildOrderResponse(orderPage);
+    }
+
+    private OrderResponse buildOrderResponse(Page<Order> orderPage) {
+        List<OrderDTO> orderDTOs = orderPage.getContent().stream()
+                .map(orderMapper::orderToOrderDTO)
+                .toList();
+        OrderResponse orderResponse = new OrderResponse();
+        orderResponse.setContent(orderDTOs);
+        orderResponse.setPageNumber(orderPage.getNumber());
+        orderResponse.setPageSize(orderPage.getSize());
+        orderResponse.setTotalPages(orderPage.getTotalPages());
+        orderResponse.setTotalElements(orderPage.getTotalElements());
+        orderResponse.setLastPage(orderPage.isLast());
+        return orderResponse;
     }
 }
