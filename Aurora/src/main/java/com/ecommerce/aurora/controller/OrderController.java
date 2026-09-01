@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -46,5 +48,11 @@ public class OrderController {
     public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
         OrderDTO orderDTO = orderService.getOrderById(orderId);
         return new ResponseEntity<>(orderDTO, HttpStatus.OK);
+    }
+
+    @GetMapping("/users/orders")
+    public ResponseEntity<List<OrderDTO>> getCurrentUserOrders() {
+        List<OrderDTO> orderDTOs = orderService.getCurrentUserOrders();
+        return new ResponseEntity<>(orderDTOs, HttpStatus.OK);
     }
 }

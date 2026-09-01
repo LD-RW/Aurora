@@ -49,4 +49,20 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             + "LEFT JOIN FETCH p.category "
             + "WHERE o.orderId IN ?1")
     List<Order> findAllWithItemsByOrderIdIn(List<Long> orderIds);
+
+    /**
+     * Same rationale as findByIdWithDetails -- no Pageable involved here either, so
+     * every relation is pulled eagerly in one query instead of relying on N+1 lazy
+     * loads through open-in-view while the response is being serialized.
+     */
+    @Query("SELECT DISTINCT o FROM Order o "
+            + "LEFT JOIN FETCH o.user "
+            + "LEFT JOIN FETCH o.address "
+            + "LEFT JOIN FETCH o.payment "
+            + "LEFT JOIN FETCH o.orderItems oi "
+            + "LEFT JOIN FETCH oi.product p "
+            + "LEFT JOIN FETCH p.category "
+            + "WHERE o.user.email = ?1 "
+            + "ORDER BY o.orderId")
+    List<Order> findByUserEmailWithDetails(String email);
 }
