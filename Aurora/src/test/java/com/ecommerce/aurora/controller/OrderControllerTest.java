@@ -427,6 +427,45 @@ class OrderControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void returnsOnlyTheCurrentUsersOrders() throws Exception {
+        User owner = userRepository.save(new User("myOrdersOwner", "password12345", "myordersowner@example.com"));
+        Product firstProduct = createProduct("Gaming Laptop", 10, BigDecimal.valueOf(1500));
+        Product secondProduct = createProduct("Wireless Mouse", 20, BigDecimal.valueOf(50));
+        createOrder(owner, firstProduct, 1, BigDecimal.valueOf(1500));
+        createOrder(owner, secondProduct, 2, BigDecimal.valueOf(50));
+
+        User otherUser = userRepository.save(new User("myOrdersOther", "password12345", "myordersother@example.com"));
+        Product thirdProduct = createProduct("Mechanical Keyboard", 15, BigDecimal.valueOf(100));
+        createOrder(otherUser, thirdProduct, 1, BigDecimal.valueOf(100));
+
+        authenticateAs(owner);
+
+        mockMvc.perform(get("/api/users/orders"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].email").value("myordersowner@example.com"))
+                .andExpect(jsonPath("$[1].email").value("myordersowner@example.com"))
+                .andExpect(jsonPath("$[0].orderItems[0].product.productName").value("Gaming Laptop"))
+                .andExpect(jsonPath("$[1].orderItems[0].product.productName").value("Wireless Mouse"));
+    }
+
+    @Test
+    void returnsAnEmptyListWhenTheCurrentUserHasNoOrders() throws Exception {
+        User user = userRepository.save(new User("myOrdersEmpty", "password12345", "myordersempty@example.com"));
+        authenticateAs(user);
+
+        mockMvc.perform(get("/api/users/orders"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void rejectsAnUnauthenticatedRequestToGetCurrentUserOrders() throws Exception {
+        mockMvc.perform(get("/api/users/orders"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private Order createOrder(User user, Product product, int quantity, BigDecimal pricePerUnit) {
         Address address = new Address("Order Street", "Order Building", "Amman", "Amman Governorate", "Jordan", "11183");
         address.setUser(user);
