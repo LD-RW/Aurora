@@ -35,6 +35,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductMapper productMapper;
     private final FileService fileService;
     private final CartService cartService;
+    private final ProductSearchStrategy productSearchStrategy;
+
     @Value("${project.image}")
     private String path;
     @Override
@@ -86,16 +88,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse searchByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
-
-        if (!AppConstants.ALLOWED_PRODUCT_SORT_FIELDS.contains(sortBy)) {
-            throw new APIException("Invalid sort field: " + sortBy);
-        }
-        Sort.Direction direction = sortOrder.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
-        Sort sortByAndOrder = Sort.by(direction, sortBy);
-        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-
-        Page<Product> productPage = productRepository.findByProductNameLikeIgnoreCase('%' + keyword + '%', pageDetails);
+    public ProductResponse searchByKeyword(String keyword, Integer pageNumber, Integer pageSize) {
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize);
+        Page<Product> productPage = productSearchStrategy.search(keyword, pageDetails);
         return buildProductResponse(productPage);
     }
 
@@ -179,5 +174,8 @@ public class ProductServiceImpl implements ProductService {
 
         return specialPrice.setScale(2, RoundingMode.HALF_UP);
     }
+
+
+
 
 }
