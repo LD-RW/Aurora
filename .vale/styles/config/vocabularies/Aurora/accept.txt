@@ -16,3 +16,9 @@ plaintext
 Adminer
 datasource
 datasources
+unescaped
+tokenization
+Lucene
+Hibernate's
+JUnit
+Liquibase

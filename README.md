@@ -6,7 +6,7 @@
 
 Aurora is an e-commerce REST API built with Spring Boot 4 and Java 25. It covers product catalog, shopping cart, address management, and order placement, with custom JWT authentication and role-based access control.
 
-> **Aurora is a personal learning project and is still under active development.** Modules are built incrementally, one GitHub issue at a time -- see the [open issues](https://github.com/LD-RW/Aurora/issues) for what's planned next. It isn't a production-ready storefront: there's no order-history endpoint yet, no real payment gateway integration, and product search is still a basic substring match.
+> **Aurora is a personal learning project and is still under active development.** Modules are built incrementally, one GitHub issue at a time -- see the [open issues](https://github.com/LD-RW/Aurora/issues) for what's planned next. It isn't a production-ready storefront, so treat it as a work in progress rather than a finished product.
 
 ## Features
 
