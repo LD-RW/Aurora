@@ -1,5 +1,6 @@
 package com.ecommerce.aurora.repositories;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import com.ecommerce.aurora.model.Category;
 import com.ecommerce.aurora.model.Product;
 import org.springframework.data.domain.Page;
@@ -20,4 +21,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByProductNameLikeIgnoreCase(String keyword, Pageable pageable);
 
     Product findByProductName(String name);
+
+    @Query(value = "SELECT * FROM products "
+            + "WHERE MATCH(product_name, description) AGAINST (:keyword IN BOOLEAN MODE) "
+            + "ORDER BY MATCH(product_name, description) AGAINST (:keyword IN BOOLEAN MODE) DESC",
+            countQuery = "SELECT COUNT(*) FROM products "
+                    + "WHERE MATCH(product_name, description) AGAINST (:keyword IN BOOLEAN MODE)",
+            nativeQuery = true)
+    Page<Product> searchByFullText(@Param("keyword") String keyword, Pageable pageable);
 }

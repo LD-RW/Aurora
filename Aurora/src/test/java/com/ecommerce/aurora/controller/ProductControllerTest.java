@@ -28,6 +28,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,6 +90,36 @@ class ProductControllerTest {
         Product untouchedExistingProduct = productRepository.findById(savedExistingProduct.getProductId()).orElseThrow();
         assertThat(untouchedExistingProduct.getProductName()).isEqualTo("Existing Laptop");
         assertThat(productRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void searchFindsProductsByCaseInsensitiveSubstring() throws Exception {
+        Category category = categoryRepository.saveAndFlush(new Category(null, "Search Electronics"));
+
+        Product laptop = new Product();
+        laptop.setProductName("Gaming Laptop");
+        laptop.setDescription("A powerful laptop");
+        laptop.setQuantity(10);
+        laptop.setPrice(BigDecimal.valueOf(1500));
+        laptop.setDiscount(BigDecimal.ZERO);
+        laptop.setSpecialPrice(BigDecimal.valueOf(1500));
+        laptop.setCategory(category);
+        productRepository.saveAndFlush(laptop);
+
+        Product mouse = new Product();
+        mouse.setProductName("Wireless Mouse");
+        mouse.setDescription("An ergonomic mouse");
+        mouse.setQuantity(20);
+        mouse.setPrice(BigDecimal.valueOf(50));
+        mouse.setDiscount(BigDecimal.ZERO);
+        mouse.setSpecialPrice(BigDecimal.valueOf(50));
+        mouse.setCategory(category);
+        productRepository.saveAndFlush(mouse);
+
+        mockMvc.perform(get("/api/public/products/search?keyword=laptop"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].productName").value("Gaming Laptop"));
     }
 
     private void authenticateAsAdmin() {

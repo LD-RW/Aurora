@@ -57,6 +57,51 @@ jobs:
 
       # shell: bash ensures ./mvnw works on Windows (via Git Bash) and Linux/macOS
       # verify runs: compile → test → package (catches lint-level errors at compile time)
+      # mysql-tagged tests need a real MySQL full-text index (MATCH/AGAINST has no H2
+      # equivalent) -- they run separately in mysql-search-test below.
       - name: Lint and Test
         shell: bash
-        run: ./mvnw clean verify
+        run: ./mvnw clean verify -DexcludedGroups=mysql
+
+  mysql-search-test:
+    name: Full-Text Search Test (MySQL)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: aurora
+          MYSQL_USER: aurora
+          MYSQL_PASSWORD: aurora
+          MYSQL_ROOT_PASSWORD: rootpassword
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    # mvnw lives inside the Aurora/ subdirectory, not the repo root
+    defaults:
+      run:
+        working-directory: Aurora
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Grant execute permission for Maven Wrapper
+        run: chmod +x mvnw
+
+      # Only runs @Tag("mysql") tests -- everything else already ran above on H2.
+      - name: Run full-text search tests against MySQL
+        run: ./mvnw clean test -Dgroups=mysql
