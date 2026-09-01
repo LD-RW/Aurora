@@ -145,6 +145,16 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.orderToOrderDTO(order);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getCurrentUserOrders() {
+        String email = authUtil.loggedInEmail();
+
+        return orderRepository.findByUserEmailWithDetails(email).stream()
+                .map(orderMapper::orderToOrderDTO)
+                .toList();
+    }
+
     private OrderResponse buildOrderResponse(Page<Order> orderPage) {
         List<OrderDTO> orderDTOs = orderPage.getContent().stream()
                 .map(orderMapper::orderToOrderDTO)
