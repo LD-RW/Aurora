@@ -11,10 +11,11 @@ Aurora is an e-commerce REST API built with Spring Boot 4 and Java 25. It covers
 ## Features
 
 - **Catalog** -- categories and products, paginated and sortable listings, image upload
+- **Search** -- keyword search over the product catalog; substring matching by default, real full-text search (multi-term, relevance-ranked) when running against MySQL
 - **Authentication** -- custom stateless JWT auth delivered via an HTTP-only cookie, role-based authorization (`ADMIN` / `SELLER` / `USER`)
 - **Cart** -- add/update/remove products, automatically kept in sync when a product's price or availability changes
 - **Addresses** -- full CRUD with ownership-based authorization (an address is only visible/editable by its owner or an admin)
-- **Orders** -- converts a user's cart into a persisted order, payment record, and stock adjustment in a single atomic transaction
+- **Orders** -- converts a user's cart into a persisted order, payment record, and stock adjustment in a single atomic transaction; paginated admin listing, lookup by ID, and a user's own order history
 
 ## Getting started
 
@@ -64,6 +65,7 @@ Aurora follows a strict layered architecture -- `Controller → Service → Repo
 - [ADR-0002 -- Centralized Exception Handling with a Uniform API Response Envelope](Aurora/docs/adr/ADR-0002%20-%20Centralized%20Exception%20Handling%20with%20a%20Uniform%20API%20Response%20Envelope.md)
 - [ADR-0003 -- Owned One-to-Many User-Address Relationship](Aurora/docs/adr/ADR-0003%20-%20Owned%20One-to-Many%20User-Address%20Relationship.md)
 - [ADR-0004 -- Custom Stateless JWT Authentication](Aurora/docs/adr/ADR-0004%20-%20Custom%20Stateless%20JWT%20Authentication.md)
+- [ADR-0005 -- Product Search Strategy: MySQL Full-Text Search vs the H2 Fallback](Aurora/docs/adr/ADR-0005%20-%20Product%20Search%20Strategy%20-%20Substring%20Fallback%20vs%20MySQL%20Full-Text.md)
 
 Every feature is tracked as a GitHub issue and shipped through a dedicated, reviewed pull request -- the issue tracker and PR history are the project's changelog.
 
@@ -73,7 +75,7 @@ A recurring part of the workflow is auditing already-shipped code for real bugs,
 
 - Found and fixed multiple mass-assignment/IDOR vulnerabilities (for example, a client could overwrite another user's data by supplying an existing ID on a create request; an authenticated user could ship an order to a different user's saved address) -- each closed with a regression test that fails against the vulnerable code and passes after the fix
 - Audited and fixed N+1 query problems across the cart and product modules
-- 60+ automated tests spanning repository, service, controller, and entity layers, run in CI on every pull request across Ubuntu, Windows, and macOS
+- 80+ automated tests spanning repository, service, controller, and entity layers, run in CI on every pull request across Ubuntu, Windows, and macOS, plus a dedicated job that runs the MySQL-specific full-text search tests against a real MySQL service container
 - Prose linting (Vale) enforced in CI alongside the test suite
 
 ## Contributing

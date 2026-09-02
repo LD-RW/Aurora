@@ -92,6 +92,21 @@ docker compose down -v
 Removes the containers **and** the volume -- this is the one that actually deletes all MySQL
 data. The next `docker compose up -d` starts completely fresh.
 
+## Search behaves differently depending on the profile
+
+Product search (`GET /api/public/products/search?keyword=...`) isn't identical on both
+databases:
+
+- **H2 (default):** a case-insensitive substring match against `productName` only.
+- **MySQL:** a real full-text search (`MATCH()`/`AGAINST()`) across `productName` and
+  `description`, with multi-term and prefix matching -- a query like `red running` requires
+  both words rather than treating the whole string as one literal substring.
+
+This is a deliberate trade-off, not a bug: MySQL's full-text search has no H2 equivalent, so
+replacing the substring query outright would have broken search for anyone on the default
+profile. See [ADR-0005](adr/ADR-0005%20-%20Product%20Search%20Strategy%20-%20Substring%20Fallback%20vs%20MySQL%20Full-Text.md)
+for the full reasoning.
+
 ## How the switch works
 
 The two datasources are two separate property files, not one file you edit back and forth:
