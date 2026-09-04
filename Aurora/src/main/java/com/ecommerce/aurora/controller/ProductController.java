@@ -6,12 +6,15 @@ import com.ecommerce.aurora.payload.ProductResponse;
 import com.ecommerce.aurora.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
 
 @RestController
 @RequestMapping("/api")
@@ -81,5 +84,19 @@ public class ProductController {
     public ResponseEntity<ProductDTO> updateProductImage(@PathVariable Long productId, @RequestParam("Image") MultipartFile image) throws IOException {
         ProductDTO updatedProductDTO = productService.updateProductImage(productId, image);
         return new ResponseEntity<>(updatedProductDTO, HttpStatus.OK);
+    }
+
+    @GetMapping("/public/products/image/{fileName}")
+    public ResponseEntity<Resource> getProductImage(@PathVariable String fileName) throws IOException {
+        Resource resource = productService.getProductImageResource(fileName);
+
+        String contentType = Files.probeContentType(resource.getFile().toPath());
+        MediaType mediaType = contentType != null
+                ? MediaType.parseMediaType(contentType)
+                : MediaType.APPLICATION_OCTET_STREAM;
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .body(resource);
     }
 }

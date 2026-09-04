@@ -13,6 +13,7 @@ import com.ecommerce.aurora.repositories.CategoryRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.MalformedURLException;
 import java.util.List;
 
 @Service
@@ -140,11 +142,12 @@ public class ProductServiceImpl implements ProductService {
         String fileName = fileService.uploadImage(path, image);
         productFromDb.setImage(fileName);
         return productMapper.productToProductDTO(productRepository.save(productFromDb));
-
-
-
     }
 
+    @Override
+    public Resource getProductImageResource(String fileName) throws MalformedURLException {
+        return fileService.loadImageAsResource(path, fileName);
+    }
 
     private ProductResponse buildProductResponse(Page<Product> productPage) {
         List<ProductDTO> productDTOS = productPage.getContent().stream()
