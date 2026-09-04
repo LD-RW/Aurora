@@ -14,22 +14,33 @@ import com.ecommerce.aurora.security.services.UserDetailsImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,9 +67,25 @@ class ProductControllerTest {
     @Autowired
     private ProductRepository productRepository;
 
+    @Value("${project.image}")
+    private String imagePath;
+
+    private final List<String> uploadedTestImageFileNames = new ArrayList<>();
+
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
+    }
+
+    // Uploaded files land on the real filesystem, not the transactional H2 database,
+    // so @Transactional's rollback never cleans them up -- without this, every test
+    // run would leave another stray file behind in the images directory.
+    @AfterEach
+    void deleteUploadedTestImages() throws IOException {
+        for (String fileName : uploadedTestImageFileNames) {
+            Files.deleteIfExists(Paths.get(imagePath, fileName));
+        }
+        uploadedTestImageFileNames.clear();
     }
 
     @Test
@@ -120,6 +147,50 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].productName").value("Gaming Laptop"));
+    }
+
+    @Test
+    void retrievesAnUploadedProductImageByteForByte() throws Exception {
+        Category category = categoryRepository.saveAndFlush(new Category(null, "Image Electronics"));
+
+        Product product = new Product();
+        product.setProductName("Image Test Laptop");
+        product.setDescription("A laptop for testing image retrieval");
+        product.setQuantity(10);
+        product.setPrice(BigDecimal.valueOf(1000));
+        product.setDiscount(BigDecimal.ZERO);
+        product.setSpecialPrice(BigDecimal.valueOf(1000));
+        product.setImage("default.png");
+        product.setCategory(category);
+        Product savedProduct = productRepository.saveAndFlush(product);
+
+        authenticateAsAdmin();
+
+        byte[] fakeImageBytes = "fake-png-bytes".getBytes(StandardCharsets.UTF_8);
+        MockMultipartFile uploadedFile = new MockMultipartFile(
+                "Image", "laptop.png", MediaType.IMAGE_PNG_VALUE, fakeImageBytes);
+
+        String responseBody = mockMvc.perform(multipart(HttpMethod.PUT, "/api/admin/products/" + savedProduct.getProductId() + "/image")
+                        .file(uploadedFile))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        String uploadedFileName = objectMapper.readTree(responseBody).get("image").asText();
+        uploadedTestImageFileNames.add(uploadedFileName);
+
+        // Content-type detection (Files.probeContentType) depends on the OS's mime
+        // database, which isn't guaranteed identical across CI's ubuntu/windows/macos
+        // runners -- so this only pins down what's actually guaranteed: the exact
+        // bytes that were uploaded come back unchanged.
+        mockMvc.perform(get("/api/public/products/image/" + uploadedFileName))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes(fakeImageBytes));
+    }
+
+    @Test
+    void rejectsARequestForANonexistentImageAsNotFound() throws Exception {
+        mockMvc.perform(get("/api/public/products/image/does-not-exist.png"))
+                .andExpect(status().isNotFound());
     }
 
     private void authenticateAsAdmin() {
