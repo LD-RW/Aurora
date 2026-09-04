@@ -10,7 +10,7 @@ Aurora is an e-commerce REST API built with Spring Boot 4 and Java 25. It covers
 
 ## Features
 
-- **Catalog** -- categories and products, paginated and sortable listings, image upload
+- **Catalog** -- categories and products, paginated and sortable listings, image upload and retrieval
 - **Search** -- keyword search over the product catalog; substring matching by default, real full-text search (multi-term, relevance-ranked) when running against MySQL
 - **Authentication** -- custom stateless JWT auth delivered via an HTTP-only cookie, role-based authorization (`ADMIN` / `SELLER` / `USER`)
 - **Cart** -- add/update/remove products, automatically kept in sync when a product's price or availability changes
