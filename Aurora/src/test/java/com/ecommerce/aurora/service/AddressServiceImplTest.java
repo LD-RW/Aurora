@@ -6,6 +6,7 @@ import com.ecommerce.aurora.model.Address;
 import com.ecommerce.aurora.model.User;
 import com.ecommerce.aurora.payload.AddressDTO;
 import com.ecommerce.aurora.repositories.AddressRepository;
+import com.ecommerce.aurora.repositories.OrderRepository;
 import com.ecommerce.aurora.util.AuthUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,9 +34,12 @@ class AddressServiceImplTest {
     @Mock
     private AuthUtil authUtil;
 
+    @Mock
+    private OrderRepository orderRepository;
+
     @Test
     void attachesTheLoggedInUserBeforeSavingAndReturnsTheMappedSavedEntity() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         AddressDTO incomingDto = new AddressDTO(null, "Main Street", "Building A", "Amman", "Amman Governorate", "Jordan", "11183");
         User loggedInUser = new User("someone", "password12345", "someone@example.com");
@@ -58,7 +62,7 @@ class AddressServiceImplTest {
 
     @Test
     void mapsEveryAddressReturnedByTheRepository() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         Address firstAddress = new Address("First Street", "First Building", "Amman", "Amman Governorate", "Jordan", "11183");
         Address secondAddress = new Address("Second Street", "Second Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
@@ -76,7 +80,7 @@ class AddressServiceImplTest {
 
     @Test
     void returnsTheAddressWhenTheCallerIsTheOwner() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -94,7 +98,7 @@ class AddressServiceImplTest {
 
     @Test
     void returnsTheAddressWhenTheCallerIsAnAdminEvenIfNotTheOwner() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -111,7 +115,7 @@ class AddressServiceImplTest {
 
     @Test
     void throwsNotFoundWhenTheCallerIsNeitherTheOwnerNorAnAdmin() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -129,7 +133,7 @@ class AddressServiceImplTest {
 
     @Test
     void throwsNotFoundWhenTheAddressDoesNotExist() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         when(addressRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -139,7 +143,7 @@ class AddressServiceImplTest {
 
     @Test
     void returnsAddressesBelongingToTheLoggedInUser() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         Address firstAddress = new Address("First Street", "First Building", "Amman", "Amman Governorate", "Jordan", "11183");
         Address secondAddress = new Address("Second Street", "Second Building", "Irbid", "Irbid Governorate", "Jordan", "21110");
@@ -159,7 +163,7 @@ class AddressServiceImplTest {
 
     @Test
     void ownerCanUpdateTheirOwnAddressFields() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -184,7 +188,7 @@ class AddressServiceImplTest {
 
     @Test
     void adminCanUpdateAnyUsersAddressFields() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -203,7 +207,7 @@ class AddressServiceImplTest {
 
     @Test
     void throwsNotFoundWhenUpdatingAsNeitherTheOwnerNorAnAdmin() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -223,7 +227,7 @@ class AddressServiceImplTest {
 
     @Test
     void throwsNotFoundWhenUpdatingANonexistentAddress() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         when(addressRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -233,7 +237,7 @@ class AddressServiceImplTest {
 
     @Test
     void ownerCanDeleteTheirOwnAddress() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -254,7 +258,7 @@ class AddressServiceImplTest {
 
     @Test
     void adminCanDeleteAnyUsersAddress() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -271,7 +275,7 @@ class AddressServiceImplTest {
 
     @Test
     void throwsNotFoundWhenDeletingAsNeitherTheOwnerNorAnAdminAndNeverDeletes() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         User owner = new User("owner", "password12345", "owner@example.com");
         owner.setUserId(1L);
@@ -290,7 +294,7 @@ class AddressServiceImplTest {
 
     @Test
     void throwsNotFoundWhenDeletingANonexistentAddress() {
-        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil);
+        AddressServiceImpl addressService = new AddressServiceImpl(addressRepository, addressMapper, authUtil, orderRepository);
 
         when(addressRepository.findById(999L)).thenReturn(Optional.empty());
 

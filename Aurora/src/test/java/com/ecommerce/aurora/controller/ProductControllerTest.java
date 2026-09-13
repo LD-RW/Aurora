@@ -26,9 +26,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -166,9 +168,11 @@ class ProductControllerTest {
 
         authenticateAsAdmin();
 
-        byte[] fakeImageBytes = "fake-png-bytes".getBytes(StandardCharsets.UTF_8);
+        // Has to decode as a real image: uploads are rejected unless ImageIO can read them,
+        // so a placeholder byte string no longer stands in for one here.
+        byte[] realImageBytes = onePixelPng();
         MockMultipartFile uploadedFile = new MockMultipartFile(
-                "Image", "laptop.png", MediaType.IMAGE_PNG_VALUE, fakeImageBytes);
+                "Image", "laptop.png", MediaType.IMAGE_PNG_VALUE, realImageBytes);
 
         String responseBody = mockMvc.perform(multipart(HttpMethod.PUT, "/api/admin/products/" + savedProduct.getProductId() + "/image")
                         .file(uploadedFile))
@@ -178,19 +182,29 @@ class ProductControllerTest {
         String uploadedFileName = objectMapper.readTree(responseBody).get("image").asText();
         uploadedTestImageFileNames.add(uploadedFileName);
 
-        // Content-type detection (Files.probeContentType) depends on the OS's mime
-        // database, which isn't guaranteed identical across CI's ubuntu/windows/macos
-        // runners -- so this only pins down what's actually guaranteed: the exact
-        // bytes that were uploaded come back unchanged.
+        // The content type now comes from the stored extension via a fixed allowlist rather
+        // than Files.probeContentType, so it no longer varies with the host's mime database
+        // and can be asserted directly alongside the round-tripped bytes.
         mockMvc.perform(get("/api/public/products/image/" + uploadedFileName))
                 .andExpect(status().isOk())
-                .andExpect(content().bytes(fakeImageBytes));
+                .andExpect(content().contentType(MediaType.IMAGE_PNG))
+                .andExpect(content().bytes(realImageBytes));
     }
 
     @Test
     void rejectsARequestForANonexistentImageAsNotFound() throws Exception {
         mockMvc.perform(get("/api/public/products/image/does-not-exist.png"))
                 .andExpect(status().isNotFound());
+    }
+
+    /**
+     * Smallest thing that survives the upload endpoint's "must decode as an image" check.
+     */
+    static byte[] onePixelPng() throws IOException {
+        BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", bytes);
+        return bytes.toByteArray();
     }
 
     private void authenticateAsAdmin() {

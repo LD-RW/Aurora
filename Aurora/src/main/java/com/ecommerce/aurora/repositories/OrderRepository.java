@@ -17,6 +17,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(attributePaths = {"user", "address", "payment"})
     Page<Order> findAll(Pageable pageable);
 
+    boolean existsByAddress_AddressId(Long addressId);
+
     /**
      * Single-order lookup, so unlike findAll(Pageable) above there's no Pageable to
      * collide with a collection JOIN FETCH -- every relation the response needs can

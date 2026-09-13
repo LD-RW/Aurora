@@ -1,11 +1,13 @@
 package com.ecommerce.aurora.service;
 
+import com.ecommerce.aurora.exceptions.ResourceInUseException;
 import com.ecommerce.aurora.exceptions.ResourceNotFoundException;
 import com.ecommerce.aurora.mapper.AddressMapper;
 import com.ecommerce.aurora.model.Address;
 import com.ecommerce.aurora.model.User;
 import com.ecommerce.aurora.payload.AddressDTO;
 import com.ecommerce.aurora.repositories.AddressRepository;
+import com.ecommerce.aurora.repositories.OrderRepository;
 import com.ecommerce.aurora.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class AddressServiceImpl implements AddressService {
     private final AddressRepository addressRepository;
     private final AddressMapper addressMapper;
     private final AuthUtil authUtil;
+    private final OrderRepository orderRepository;
 
     @Override
     public AddressDTO createAddress(AddressDTO addressDTO) {
@@ -85,6 +88,15 @@ public class AddressServiceImpl implements AddressService {
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "addressId", addressId));
 
         authUtil.assertOwnerOrAdmin(address.getUser().getUserId(), "Address", "addressId", addressId);
+
+        // Checked here rather than left to the foreign key on orders.address_id. That constraint
+        // fires at flush, which for a delete is commit time -- after the controller has returned,
+        // where the failure surfaces as a wrapped transaction error rather than something
+        // attributable to this request. Asking first turns it into a precise 409.
+        if (orderRepository.existsByAddress_AddressId(addressId)) {
+            throw new ResourceInUseException(
+                    "This address is used by an existing order and cannot be deleted");
+        }
 
         addressRepository.delete(address);
 
