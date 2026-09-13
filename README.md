@@ -66,6 +66,7 @@ Aurora follows a strict layered architecture -- `Controller → Service → Repo
 - [ADR-0003 -- Owned One-to-Many User-Address Relationship](Aurora/docs/adr/ADR-0003%20-%20Owned%20One-to-Many%20User-Address%20Relationship.md)
 - [ADR-0004 -- Custom Stateless JWT Authentication](Aurora/docs/adr/ADR-0004%20-%20Custom%20Stateless%20JWT%20Authentication.md)
 - [ADR-0005 -- Product Search Strategy: MySQL Full-Text Search vs the H2 Fallback](Aurora/docs/adr/ADR-0005%20-%20Product%20Search%20Strategy%20-%20Substring%20Fallback%20vs%20MySQL%20Full-Text.md)
+- [ADR-0006 -- Stock Reservation at Checkout with Pessimistic Row Locking](Aurora/docs/adr/ADR-0006%20-%20Stock%20Reservation%20at%20Checkout%20with%20Pessimistic%20Row%20Locking.md)
 
 Every feature is tracked as a GitHub issue and shipped through a dedicated, reviewed pull request -- the issue tracker and PR history are the project's changelog.
 

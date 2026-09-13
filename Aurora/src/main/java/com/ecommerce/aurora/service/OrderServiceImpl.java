@@ -22,6 +22,9 @@ import com.ecommerce.aurora.repositories.OrderRepository;
 import com.ecommerce.aurora.repositories.PaymentRepository;
 import com.ecommerce.aurora.repositories.ProductRepository;
 import com.ecommerce.aurora.util.AuthUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -47,6 +51,9 @@ public class OrderServiceImpl implements OrderService {
     private final CartService cartService;
     private final AuthUtil authUtil;
     private final OrderMapper orderMapper;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     @Transactional
@@ -73,6 +80,8 @@ public class OrderServiceImpl implements OrderService {
         if (!address.getUser().getUserId().equals(user.getUserId())) {
             throw new ResourceNotFoundException("Address", "addressId", orderRequestDTO.getAddressId());
         }
+
+        reserveStock(cartItems);
 
         Payment payment = new Payment(paymentMethod, orderRequestDTO.getPgPaymentId(),
                 orderRequestDTO.getPgStatus(), orderRequestDTO.getPgResponseMessage(), orderRequestDTO.getPgName());
@@ -104,14 +113,50 @@ public class OrderServiceImpl implements OrderService {
         savedOrder.setOrderItems(savedOrderItems);
 
         for (CartItem cartItem : cartItems) {
-            Product product = cartItem.getProduct();
-            product.setQuantity(product.getQuantity() - cartItem.getQuantity());
-            productRepository.save(product);
-
-            cartService.deleteProductFromCart(cart.getCartId(), product.getProductId());
+            cartService.deleteProductFromCart(cart.getCartId(), cartItem.getProduct().getProductId());
         }
 
         return orderMapper.orderToOrderDTO(savedOrder);
+    }
+
+    /**
+     * Re-checks availability and decrements stock for every line before the order is written.
+     *
+     * Stock used to be validated only when an item was added to the cart, and checkout
+     * subtracted unconditionally. A cart can sit for days, so anything that sold out in the
+     * meantime still checked out successfully and drove products.quantity negative -- two
+     * users each holding the last five units both completed an order for them.
+     *
+     * Lines are locked in productId order because a transaction holds each lock until it
+     * commits: two carts containing the same two products in opposite orders would otherwise
+     * be able to take one lock each and then wait on the other forever. A consistent ordering
+     * means whoever takes the lowest id first also gets the rest.
+     */
+    private void reserveStock(List<CartItem> cartItems) {
+        List<CartItem> orderedByProductId = cartItems.stream()
+                .sorted(Comparator.comparing(cartItem -> cartItem.getProduct().getProductId()))
+                .toList();
+
+        for (CartItem cartItem : orderedByProductId) {
+            Product product = cartItem.getProduct();
+
+            // refresh(), not a locking finder. Loading the cart already put this Product in the
+            // persistence context, and a query that returns an already-managed entity hands back
+            // the cached instance rather than the row it just read -- so a locking SELECT still
+            // saw the pre-lock quantity. Two checkouts for the last 5 units then both read 5,
+            // both passed the check, and both wrote 0: the second silently overwrote the first.
+            // refresh(entity, PESSIMISTIC_WRITE) takes the row lock *and* reloads the state
+            // behind it, so whoever waits for the lock sees what the winner committed.
+            entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+
+            if (product.getQuantity() < cartItem.getQuantity()) {
+                throw new APIException("Only " + product.getQuantity() + " of "
+                        + product.getProductName() + " left in stock. Please reduce the quantity in your cart.");
+            }
+
+            product.setQuantity(product.getQuantity() - cartItem.getQuantity());
+            productRepository.save(product);
+        }
     }
 
     @Override
