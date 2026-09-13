@@ -31,6 +31,14 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public CartDTO addProductToCart(Long productId, Integer quantity) {
+        // Guarded at the controller too, but repeated here because the stock check below reads
+        // "product.getQuantity() < quantity", which a negative quantity passes trivially
+        // (5 < -5 is false). That let a caller add a negative line, invert the cart total, and
+        // -- once ordered -- increase stock instead of reducing it.
+        if (quantity == null || quantity < 1) {
+            throw new APIException("Quantity must be at least 1");
+        }
+
         Cart cart = createCart();
 
         Product product = productRepository.findById(productId)

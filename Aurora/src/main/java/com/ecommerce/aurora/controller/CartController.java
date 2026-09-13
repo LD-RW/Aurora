@@ -4,9 +4,11 @@ import com.ecommerce.aurora.exceptions.APIException;
 import com.ecommerce.aurora.payload.APIResponse;
 import com.ecommerce.aurora.payload.CartDTO;
 import com.ecommerce.aurora.service.CartService;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,13 +22,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Validated
 public class CartController {
 
     private final CartService cartService;
 
     @PostMapping("/carts/products/{productId}/quantity/{quantity}")
     public ResponseEntity<CartDTO> addProductToCart(@PathVariable Long productId,
-                                                    @PathVariable Integer quantity){
+                                                    @PathVariable @Min(value = 1, message = "Quantity must be at least 1") Integer quantity){
         CartDTO cartDTO = cartService.addProductToCart(productId, quantity);
         return new ResponseEntity<>(cartDTO, HttpStatus.CREATED);
     }
