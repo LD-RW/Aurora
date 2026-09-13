@@ -55,10 +55,37 @@ public class AdminUserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "userId", userId));
 
-        user.setRoles(resolveRoles(request.getRoles()));
+        Set<Role> newRoles = resolveRoles(request.getRoles());
+        assertStillLeavesAnAdmin(user, newRoles);
+
+        user.setRoles(newRoles);
         userRepository.save(user);
 
         return ResponseEntity.ok(new MessageResponse("Roles updated successfully"));
+    }
+
+    /**
+     * Rejects a role change that would remove the last administrator. This endpoint is itself
+     * behind hasRole("ADMIN"), so an admin who dropped their own admin role -- or removed it
+     * from the only other holder -- locked every remaining path to it and could only be
+     * recovered by editing the database directly.
+     */
+    private void assertStillLeavesAnAdmin(User user, Set<Role> newRoles) {
+        boolean currentlyAdmin = user.getRoles().stream()
+                .anyMatch(role -> role.getRoleName() == AppRole.ROLE_ADMIN);
+        boolean remainsAdmin = newRoles.stream()
+                .anyMatch(role -> role.getRoleName() == AppRole.ROLE_ADMIN);
+
+        if (currentlyAdmin && !remainsAdmin && countAdmins() <= 1) {
+            throw new APIException("Cannot remove the last administrator");
+        }
+    }
+
+    private long countAdmins() {
+        return userRepository.findAll().stream()
+                .filter(candidate -> candidate.getRoles().stream()
+                        .anyMatch(role -> role.getRoleName() == AppRole.ROLE_ADMIN))
+                .count();
     }
 
     private Set<Role> resolveRoles(Set<String> roleNames) {
