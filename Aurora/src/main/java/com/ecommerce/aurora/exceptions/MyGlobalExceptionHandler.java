@@ -7,6 +7,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -62,6 +63,38 @@ public class MyGlobalExceptionHandler extends ResponseEntityExceptionHandler {
             response.put(fieldName, violation.getMessage());
         }
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResourceInUseException.class)
+    public ResponseEntity<APIResponse> resourceInUseExceptionHandler(ResourceInUseException e) {
+        APIResponse apiResponse = new APIResponse(e.getMessage(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Backstop for a write blocked by a database constraint that no service checked for first.
+     * Without it these reached the catch-all and surfaced as an opaque 500, even though the
+     * transaction had rolled back cleanly and the cause is a client-side conflict.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<APIResponse> dataIntegrityViolationHandler(DataIntegrityViolationException e) {
+        LOG.warn("Data integrity violation", e);
+        APIResponse apiResponse = new APIResponse(
+                "This record is referenced by other data and cannot be modified or deleted", false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Out-of-range pagination values (a negative pageNumber, a pageSize of 0) make
+     * PageRequest.of throw IllegalArgumentException. That is a malformed request, but with no
+     * handler it fell through to the catch-all as a 500 and was logged as an unhandled server
+     * error. Controllers now bound these values up front; this stays as a backstop so any
+     * other bad argument reaching a service is still reported as a 400.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<APIResponse> illegalArgumentExceptionHandler(IllegalArgumentException e) {
+        APIResponse apiResponse = new APIResponse(e.getMessage(), false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
     }
 
     /**
