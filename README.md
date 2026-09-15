@@ -34,6 +34,8 @@ cd Aurora/Aurora
 
 The API starts on `http://localhost:8080` against an in-memory H2 database -- nothing else to install or configure. A default admin account is seeded automatically on first startup (`admin` / `admin123`, both overridable via the `ADMIN_USERNAME` / `ADMIN_PASSWORD` environment variables).
 
+Interactive API docs (Swagger UI) are served at `http://localhost:8080/swagger-ui/index.html`. Its "Authorize" button is a manual fallback, not the normal login flow -- the API authenticates via an HttpOnly cookie set on sign-in, which Swagger UI (like any browser JavaScript) can't read; to drive an owner/admin-only endpoint from there, sign in, copy the cookie's value from your browser's developer tools, and paste it into Authorize.
+
 Try it once it's up:
 
 ```bash
