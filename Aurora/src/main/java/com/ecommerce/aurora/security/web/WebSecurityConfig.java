@@ -95,7 +95,8 @@ public class WebSecurityConfig {
                         auth.requestMatchers("/error").permitAll()
                                 .requestMatchers("/api/auth/user", "/api/auth/username").authenticated()
                                 .requestMatchers("/api/auth/**").permitAll()
-                                .requestMatchers("/h2-console/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()                                .requestMatchers("/api/public/**").permitAll()
+                                .requestMatchers("/h2-console/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                                .requestMatchers("/api/public/**").permitAll()
                                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                 .anyRequest().authenticated()
                 );
